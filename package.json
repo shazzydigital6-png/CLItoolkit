@@ -1,0 +1,27 @@
+{
+  "name": "hostify-csv",
+  "version": "1.0.0",
+  "description": "CLI tool for working with Hostfully CSV data",
+  "main": "index.js",
+  "scripts": {
+    "start": "ts-node src/cli/index.ts",
+    "export": "ts-node src/cli/export.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.11.0",
+    "commander": "^14.0.0",
+    "csv-parse": "^6.1.0",
+    "csv-stringify": "^6.6.0",
+    "dotenv": "^17.2.1",
+    "pino": "^9.8.0",
+    "zod": "^4.0.17"
+  },
+  "devDependencies": {
+    "@types/node": "^24.2.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  }
+}

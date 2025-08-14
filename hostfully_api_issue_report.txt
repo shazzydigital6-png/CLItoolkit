@@ -1,0 +1,729 @@
+
+> hostify-csv@1.0.0 start
+> ts-node src/cli/index.ts graphql-list
+
+📋 Fetching properties summary via GraphQL...
+
+🔧 GraphQL Client initialized with base URL: https://platform.hostfully.com/api/v3.2
+🔧 Agency UID: 8e29a05e-a7bd-4556-9034-3cc0334fb082
+🔧 Auth token: None
+🔍 Starting GraphQL query for properties...
+🔍 Trying to get all properties using different strategies...
+📡 Strategy 1: Basic query
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'data', 'extensions' ]
+📊 Found 20 properties in response
+✅ Basic query: 20 properties
+📡 Strategy 2: Include sub-units
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'data', 'extensions' ]
+📊 Found 20 properties in response
+✅ Sub-units query: 20 total, 0 new properties
+📡 Strategy 3: Different sorting strategies
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'data', 'extensions' ]
+📊 Found 20 properties in response
+✅ SORT_BY_NAME: 20 total, 0 new properties
+📡 Strategy 4: Filter by different criteria
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'data', 'extensions' ]
+📊 Found 20 properties in response
+✅ Max 1 bedrooms: 20 total, 1 new
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'data', 'extensions' ]
+📊 Found 20 properties in response
+✅ Max 2 bedrooms: 20 total, 0 new
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'data', 'extensions' ]
+📊 Found 20 properties in response
+✅ Max 3 bedrooms: 20 total, 0 new
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'data', 'extensions' ]
+📊 Found 20 properties in response
+✅ Max 4 bedrooms: 20 total, 0 new
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'data', 'extensions' ]
+📊 Found 20 properties in response
+✅ Max 5 bedrooms: 20 total, 0 new
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'data', 'extensions' ]
+📊 Found 20 properties in response
+✅ Max 6 bedrooms: 20 total, 0 new
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'data', 'extensions' ]
+📊 Found 20 properties in response
+✅ Max 10 bedrooms: 20 total, 0 new
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'data', 'extensions' ]
+📊 Found 20 properties in response
+✅ Max 2 guests: 20 total, 1 new
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'data', 'extensions' ]
+📊 Found 20 properties in response
+✅ Max 4 guests: 20 total, 0 new
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'data', 'extensions' ]
+📊 Found 20 properties in response
+✅ Max 6 guests: 20 total, 0 new
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'data', 'extensions' ]
+📊 Found 20 properties in response
+✅ Max 8 guests: 20 total, 0 new
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'data', 'extensions' ]
+📊 Found 20 properties in response
+✅ Max 10 guests: 20 total, 0 new
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'data', 'extensions' ]
+📊 Found 20 properties in response
+✅ Max 12 guests: 20 total, 0 new
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'data', 'extensions' ]
+📊 Found 20 properties in response
+✅ Max 16 guests: 20 total, 0 new
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'data', 'extensions' ]
+📊 Found 20 properties in response
+✅ Max 20 guests: 20 total, 0 new
+📡 Strategy 5: Try different property and business types
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'errors', 'data', 'extensions' ]
+📊 Found 0 properties in response
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'errors', 'data', 'extensions' ]
+📊 Found 0 properties in response
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'errors', 'data', 'extensions' ]
+📊 Found 0 properties in response
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'errors', 'data', 'extensions' ]
+📊 Found 0 properties in response
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'errors', 'data', 'extensions' ]
+📊 Found 0 properties in response
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'errors', 'data', 'extensions' ]
+📊 Found 0 properties in response
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'errors', 'data', 'extensions' ]
+📊 Found 0 properties in response
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'errors', 'data', 'extensions' ]
+📊 Found 0 properties in response
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'errors', 'data', 'extensions' ]
+📊 Found 0 properties in response
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'errors', 'data', 'extensions' ]
+📊 Found 0 properties in response
+📡 Strategy 6: Try inactive and archived properties
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'data', 'extensions' ]
+📊 Found 2 properties in response
+✅ Filter inactive: 2 total, 1 new
+📡 Making GraphQL request to https://platform.hostfully.com/api/v3.2/graphql
+📡 Headers: [ 'Content-Type', 'X-HOSTFULLY-APIKEY' ]
+📡 Response status: 200
+📡 Response data keys: [ 'data', 'extensions' ]
+📊 Found 20 properties in response
+✅ Filter all-statuses: 20 total, 0 new
+
+📡 Strategy 7: Enhanced REST API fallback
+⚠️ Trying REST strategy: all-properties
+📊 REST all-properties found 20 properties
+✅ REST all-properties added 0 new properties
+⚠️ Trying REST strategy: include-archived
+📊 REST include-archived found 20 properties
+✅ REST include-archived added 0 new properties
+⚠️ Trying REST strategy: no-limit
+📊 REST no-limit found 20 properties
+✅ REST no-limit added 0 new properties
+⚠️ Trying REST strategy: different-endpoint
+❌ REST different-endpoint failed: AxiosError: Request failed with status code 404
+    at settle (/Users/shazzydigital/projects/hostify-csv/node_modules/.pnpm/axios@1.11.0/node_modules/axios/lib/core/settle.js:19:12)
+    at Unzip.handleStreamEnd (/Users/shazzydigital/projects/hostify-csv/node_modules/.pnpm/axios@1.11.0/node_modules/axios/lib/adapters/http.js:599:11)
+    at Unzip.emit (node:events:530:35)
+    at Unzip.emit (node:domain:489:12)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (/Users/shazzydigital/projects/hostify-csv/node_modules/.pnpm/axios@1.11.0/node_modules/axios/lib/core/Axios.js:45:41)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async GraphQLHostfullyClient.getAllProperties (/Users/shazzydigital/projects/hostify-csv/src/api/graphqlHostfullyClient.ts:611:34)
+    at async listPropertiesSummary (/Users/shazzydigital/projects/hostify-csv/src/cli/graphqlCommands.ts:265:24)
+    at async Command.<anonymous> (/Users/shazzydigital/projects/hostify-csv/src/cli/index.ts:279:5) {
+  code: 'ERR_BAD_REQUEST',
+  config: {
+    transitional: {
+      silentJSONParsing: true,
+      forcedJSONParsing: true,
+      clarifyTimeoutError: false
+    },
+    adapter: [ 'xhr', 'http', 'fetch' ],
+    transformRequest: [ [Function: transformRequest] ],
+    transformResponse: [ [Function: transformResponse] ],
+    timeout: 30000,
+    xsrfCookieName: 'XSRF-TOKEN',
+    xsrfHeaderName: 'X-XSRF-TOKEN',
+    maxContentLength: -1,
+    maxBodyLength: -1,
+    env: { FormData: [Function [FormData]], Blob: [class Blob] },
+    validateStatus: [Function: validateStatus],
+    headers: Object [AxiosHeaders] {
+      Accept: 'application/json, text/plain, */*',
+      'Content-Type': undefined,
+      'X-HOSTFULLY-APIKEY': 'gVa9jjSZb3GBZevh',
+      'User-Agent': 'axios/1.11.0',
+      'Accept-Encoding': 'gzip, compress, deflate, br'
+    },
+    baseURL: 'https://platform.hostfully.com/api/v3.2',
+    params: { agencyUid: '8e29a05e-a7bd-4556-9034-3cc0334fb082', limit: 100 },
+    method: 'get',
+    url: '/listings',
+    allowAbsoluteUrls: true,
+    data: undefined
+  },
+  request: <ref *1> ClientRequest {
+    _events: [Object: null prototype] {
+      abort: [Function (anonymous)],
+      aborted: [Function (anonymous)],
+      connect: [Function (anonymous)],
+      error: [Function (anonymous)],
+      socket: [Function (anonymous)],
+      timeout: [Function (anonymous)],
+      finish: [Function: requestOnFinish]
+    },
+    _eventsCount: 7,
+    _maxListeners: undefined,
+    outputData: [],
+    outputSize: 0,
+    writable: true,
+    destroyed: true,
+    _last: true,
+    chunkedEncoding: false,
+    shouldKeepAlive: true,
+    maxRequestsOnConnectionReached: false,
+    _defaultKeepAlive: true,
+    useChunkedEncodingByDefault: false,
+    sendDate: false,
+    _removedConnection: false,
+    _removedContLen: false,
+    _removedTE: false,
+    strictContentLength: false,
+    _contentLength: 0,
+    _hasBody: true,
+    _trailer: '',
+    finished: true,
+    _headerSent: true,
+    _closed: true,
+    _header: 'GET /api/v3.2/listings?agencyUid=8e29a05e-a7bd-4556-9034-3cc0334fb082&limit=100 HTTP/1.1\r\n' +
+      'Accept: application/json, text/plain, */*\r\n' +
+      'X-HOSTFULLY-APIKEY: gVa9jjSZb3GBZevh\r\n' +
+      'User-Agent: axios/1.11.0\r\n' +
+      'Accept-Encoding: gzip, compress, deflate, br\r\n' +
+      'Host: platform.hostfully.com\r\n' +
+      'Connection: keep-alive\r\n' +
+      '\r\n',
+    _keepAliveTimeout: 0,
+    _onPendingData: [Function: nop],
+    agent: Agent {
+      _events: [Object: null prototype],
+      _eventsCount: 2,
+      _maxListeners: undefined,
+      defaultPort: 443,
+      protocol: 'https:',
+      options: [Object: null prototype],
+      requests: [Object: null prototype] {},
+      sockets: [Object: null prototype] {},
+      freeSockets: [Object: null prototype],
+      keepAliveMsecs: 1000,
+      keepAlive: true,
+      maxSockets: Infinity,
+      maxFreeSockets: 256,
+      scheduling: 'lifo',
+      maxTotalSockets: Infinity,
+      totalSocketCount: 1,
+      maxCachedSessions: 100,
+      _sessionCache: [Object],
+      [Symbol(shapeMode)]: false,
+      [Symbol(kCapture)]: false
+    },
+    socketPath: undefined,
+    method: 'GET',
+    maxHeaderSize: undefined,
+    insecureHTTPParser: undefined,
+    joinDuplicateHeaders: undefined,
+    path: '/api/v3.2/listings?agencyUid=8e29a05e-a7bd-4556-9034-3cc0334fb082&limit=100',
+    _ended: true,
+    res: IncomingMessage {
+      _events: [Object],
+      _readableState: [ReadableState],
+      _maxListeners: undefined,
+      socket: null,
+      httpVersionMajor: 1,
+      httpVersionMinor: 1,
+      httpVersion: '1.1',
+      complete: true,
+      rawHeaders: [Array],
+      rawTrailers: [],
+      joinDuplicateHeaders: undefined,
+      aborted: false,
+      upgrade: false,
+      url: '',
+      method: null,
+      statusCode: 404,
+      statusMessage: '',
+      client: [TLSSocket],
+      _consuming: true,
+      _dumped: false,
+      req: [Circular *1],
+      _eventsCount: 4,
+      responseUrl: 'https://platform.hostfully.com/api/v3.2/listings?agencyUid=8e29a05e-a7bd-4556-9034-3cc0334fb082&limit=100',
+      redirects: [],
+      [Symbol(shapeMode)]: true,
+      [Symbol(kCapture)]: false,
+      [Symbol(kHeaders)]: [Object],
+      [Symbol(kHeadersCount)]: 24,
+      [Symbol(kTrailers)]: null,
+      [Symbol(kTrailersCount)]: 0
+    },
+    aborted: false,
+    timeoutCb: null,
+    upgradeOrConnect: false,
+    parser: null,
+    maxHeadersCount: null,
+    reusedSocket: true,
+    host: 'platform.hostfully.com',
+    protocol: 'https:',
+    _redirectable: Writable {
+      _events: [Object],
+      _writableState: [WritableState],
+      _maxListeners: undefined,
+      _options: [Object],
+      _ended: true,
+      _ending: true,
+      _redirectCount: 0,
+      _redirects: [],
+      _requestBodyLength: 0,
+      _requestBodyBuffers: [],
+      _eventsCount: 3,
+      _onNativeResponse: [Function (anonymous)],
+      _currentRequest: [Circular *1],
+      _currentUrl: 'https://platform.hostfully.com/api/v3.2/listings?agencyUid=8e29a05e-a7bd-4556-9034-3cc0334fb082&limit=100',
+      _timeout: null,
+      [Symbol(shapeMode)]: true,
+      [Symbol(kCapture)]: false
+    },
+    [Symbol(shapeMode)]: false,
+    [Symbol(kCapture)]: false,
+    [Symbol(kBytesWritten)]: 0,
+    [Symbol(kNeedDrain)]: false,
+    [Symbol(corked)]: 0,
+    [Symbol(kChunkedBuffer)]: [],
+    [Symbol(kChunkedLength)]: 0,
+    [Symbol(kSocket)]: TLSSocket {
+      _tlsOptions: [Object],
+      _secureEstablished: true,
+      _securePending: false,
+      _newSessionPending: false,
+      _controlReleased: true,
+      secureConnecting: false,
+      _SNICallback: null,
+      servername: 'platform.hostfully.com',
+      alpnProtocol: false,
+      authorized: true,
+      authorizationError: null,
+      encrypted: true,
+      _events: [Object: null prototype],
+      _eventsCount: 9,
+      connecting: false,
+      _hadError: false,
+      _parent: null,
+      _host: 'platform.hostfully.com',
+      _closeAfterHandlingError: false,
+      _readableState: [ReadableState],
+      _writableState: [WritableState],
+      allowHalfOpen: false,
+      _maxListeners: undefined,
+      _sockname: null,
+      _pendingData: null,
+      _pendingEncoding: '',
+      server: undefined,
+      _server: null,
+      ssl: [TLSWrap],
+      _requestCert: true,
+      _rejectUnauthorized: true,
+      timeout: 5000,
+      parser: null,
+      _httpMessage: null,
+      autoSelectFamilyAttemptedAddresses: [Array],
+      [Symbol(alpncallback)]: null,
+      [Symbol(res)]: [TLSWrap],
+      [Symbol(verified)]: true,
+      [Symbol(pendingSession)]: null,
+      [Symbol(async_id_symbol)]: -1,
+      [Symbol(kHandle)]: [TLSWrap],
+      [Symbol(lastWriteQueueSize)]: 0,
+      [Symbol(timeout)]: Timeout {
+        _idleTimeout: 5000,
+        _idlePrev: [TimersList],
+        _idleNext: [TimersList],
+        _idleStart: 13548,
+        _onTimeout: [Function: bound ],
+        _timerArgs: undefined,
+        _repeat: null,
+        _destroyed: false,
+        [Symbol(refed)]: false,
+        [Symbol(kHasPrimitive)]: false,
+        [Symbol(asyncId)]: 1072,
+        [Symbol(triggerId)]: 1070,
+        [Symbol(kAsyncContextFrame)]: undefined
+      },
+      [Symbol(kBuffer)]: null,
+      [Symbol(kBufferCb)]: null,
+      [Symbol(kBufferGen)]: null,
+      [Symbol(shapeMode)]: true,
+      [Symbol(kCapture)]: false,
+      [Symbol(kSetNoDelay)]: false,
+      [Symbol(kSetKeepAlive)]: true,
+      [Symbol(kSetKeepAliveInitialDelay)]: 1,
+      [Symbol(kBytesRead)]: 0,
+      [Symbol(kBytesWritten)]: 0,
+      [Symbol(connect-options)]: [Object]
+    },
+    [Symbol(kOutHeaders)]: [Object: null prototype] {
+      accept: [Array],
+      'x-hostfully-apikey': [Array],
+      'user-agent': [Array],
+      'accept-encoding': [Array],
+      host: [Array]
+    },
+    [Symbol(errored)]: null,
+    [Symbol(kHighWaterMark)]: 65536,
+    [Symbol(kRejectNonStandardBodyWrites)]: false,
+    [Symbol(kUniqueHeaders)]: null
+  },
+  response: {
+    status: 404,
+    statusText: '',
+    headers: Object [AxiosHeaders] {
+      date: 'Thu, 14 Aug 2025 00:05:12 GMT',
+      'content-type': 'application/json',
+      'transfer-encoding': 'chunked',
+      connection: 'keep-alive',
+      'x-ratelimit-limit': '10000',
+      'x-ratelimit-remaining': '9713',
+      'x-trace-id': '162a712c-3ced-43c0-ae0e-2c9eacb271cc',
+      vary: 'origin,access-control-request-method,access-control-request-headers,accept-encoding',
+      'x-content-type-options': 'nosniff',
+      'x-xss-protection': '1; mode=block',
+      'strict-transport-security': 'max-age=31536000 ; includeSubDomains'
+    },
+    config: {
+      transitional: [Object],
+      adapter: [Array],
+      transformRequest: [Array],
+      transformResponse: [Array],
+      timeout: 30000,
+      xsrfCookieName: 'XSRF-TOKEN',
+      xsrfHeaderName: 'X-XSRF-TOKEN',
+      maxContentLength: -1,
+      maxBodyLength: -1,
+      env: [Object],
+      validateStatus: [Function: validateStatus],
+      headers: [Object [AxiosHeaders]],
+      baseURL: 'https://platform.hostfully.com/api/v3.2',
+      params: [Object],
+      method: 'get',
+      url: '/listings',
+      allowAbsoluteUrls: true,
+      data: undefined
+    },
+    request: <ref *1> ClientRequest {
+      _events: [Object: null prototype],
+      _eventsCount: 7,
+      _maxListeners: undefined,
+      outputData: [],
+      outputSize: 0,
+      writable: true,
+      destroyed: true,
+      _last: true,
+      chunkedEncoding: false,
+      shouldKeepAlive: true,
+      maxRequestsOnConnectionReached: false,
+      _defaultKeepAlive: true,
+      useChunkedEncodingByDefault: false,
+      sendDate: false,
+      _removedConnection: false,
+      _removedContLen: false,
+      _removedTE: false,
+      strictContentLength: false,
+      _contentLength: 0,
+      _hasBody: true,
+      _trailer: '',
+      finished: true,
+      _headerSent: true,
+      _closed: true,
+      _header: 'GET /api/v3.2/listings?agencyUid=8e29a05e-a7bd-4556-9034-3cc0334fb082&limit=100 HTTP/1.1\r\n' +
+        'Accept: application/json, text/plain, */*\r\n' +
+        'X-HOSTFULLY-APIKEY: gVa9jjSZb3GBZevh\r\n' +
+        'User-Agent: axios/1.11.0\r\n' +
+        'Accept-Encoding: gzip, compress, deflate, br\r\n' +
+        'Host: platform.hostfully.com\r\n' +
+        'Connection: keep-alive\r\n' +
+        '\r\n',
+      _keepAliveTimeout: 0,
+      _onPendingData: [Function: nop],
+      agent: [Agent],
+      socketPath: undefined,
+      method: 'GET',
+      maxHeaderSize: undefined,
+      insecureHTTPParser: undefined,
+      joinDuplicateHeaders: undefined,
+      path: '/api/v3.2/listings?agencyUid=8e29a05e-a7bd-4556-9034-3cc0334fb082&limit=100',
+      _ended: true,
+      res: [IncomingMessage],
+      aborted: false,
+      timeoutCb: null,
+      upgradeOrConnect: false,
+      parser: null,
+      maxHeadersCount: null,
+      reusedSocket: true,
+      host: 'platform.hostfully.com',
+      protocol: 'https:',
+      _redirectable: [Writable],
+      [Symbol(shapeMode)]: false,
+      [Symbol(kCapture)]: false,
+      [Symbol(kBytesWritten)]: 0,
+      [Symbol(kNeedDrain)]: false,
+      [Symbol(corked)]: 0,
+      [Symbol(kChunkedBuffer)]: [],
+      [Symbol(kChunkedLength)]: 0,
+      [Symbol(kSocket)]: [TLSSocket],
+      [Symbol(kOutHeaders)]: [Object: null prototype],
+      [Symbol(errored)]: null,
+      [Symbol(kHighWaterMark)]: 65536,
+      [Symbol(kRejectNonStandardBodyWrites)]: false,
+      [Symbol(kUniqueHeaders)]: null
+    },
+    data: {
+      apiErrorMessage: 'Unknown api: ',
+      uid: '5f80d3f4-8761-4e7e-ab5c-ca8145440f44'
+    }
+  },
+  status: 404
+}
+
+🎉 COLLECTION COMPLETE!
+📊 Total unique properties found: 23
+🎯 Expected: 89 properties
+📈 Success rate: 26%
+✅ SUCCESS! Found more than the default 20 properties!
+
+📊 PROPERTIES SUMMARY (23 total)
+════════════════════════════════════════════════════════════
+ 1. 4417-01 "The Grant" · Private Patio
+    UID: ac8d730c-2554-4547-986a-dda3bb2a6b62
+    Status: 🟢 ACTIVE
+    Type: CONDO | Guests: 2
+    Address: 4417 Swiss Avenue, Dallas, TX
+
+ 2. 4417-02 "Austin" 
+    UID: 3fe4130f-a44c-42d1-9132-702af9d66f7c
+    Status: 🟢 ACTIVE
+    Type: CONDO | Guests: 2
+    Address: 4417 Swiss Avenue, Dallas, TX
+
+ 3. 4417-03 "Oak" ·
+    UID: 24b2b422-d78c-4b6c-aa35-7e408cc2f8ae
+    Status: 🟢 ACTIVE
+    Type: CONDO | Guests: 2
+    Address: 4417 Swiss Avenue, Dallas, TX
+
+ 4. 4417-04 "The Swiss"
+    UID: da0364e4-9a6c-477d-9cc0-65a5a984bff6
+    Status: 🟢 ACTIVE
+    Type: CONDO | Guests: 2
+    Address: 4417 Swiss Avenue, Dallas, TX
+
+ 5. 4417-05 "Blue Lux"
+    UID: 5e5579fb-4039-4b81-8317-24e7fd67187d
+    Status: 🟢 ACTIVE
+    Type: CONDO | Guests: 2
+    Address: 4417 Swiss Avenue, Dallas, TX
+
+ 6. 4417-06 Petite Garden
+    UID: f0a35595-63d8-4164-976d-9e8216245fd8
+    Status: 🟢 ACTIVE
+    Type: CONDO | Guests: 2
+    Address: 4417 Swiss Avenue, Dallas, TX
+
+ 7. 4417-07 "Jefferson" · 
+    UID: 2233d45f-b621-448a-b411-3c9852da517a
+    Status: 🟢 ACTIVE
+    Type: CONDO | Guests: 2
+    Address: 4417 Swiss Avenue, Dallas, TX
+
+ 8. 4417-09 "Roosevelt"
+    UID: ae7b3948-332e-4284-9044-7d49e1f861ac
+    Status: 🟢 ACTIVE
+    Type: CONDO | Guests: 2
+    Address: 4417 Swiss Avenue, Dallas, TX
+
+ 9. 4417-10 "Cozy Swiss Retreat" 
+    UID: eebab2d6-745a-4709-80dc-65c0e36435e6
+    Status: 🟢 ACTIVE
+    Type: CONDO | Guests: 2
+    Address: 4417 Swiss Avenue, Dallas, TX
+
+10. 4417-11 Bluebonnet 
+    UID: 7fa25226-5a23-40e6-ae79-563974f481d1
+    Status: 🟢 ACTIVE
+    Type: CONDO | Guests: 2
+    Address: 4417 Swiss Avenue, Dallas, TX
+
+11. 4417-12 "CozyStay" 
+    UID: fbb08111-4e1e-477c-9412-181f1d545546
+    Status: 🟢 ACTIVE
+    Type: CONDO | Guests: 2
+    Address: 4417 Swiss Avenue, Dallas, TX
+
+12. 4502-02 "Grand Manor" · Historic Luxury Home in Lakewood
+    UID: 819d8568-7d16-473e-8552-1fae0bbfd0dd
+    Status: 🟢 ACTIVE
+    Type: HOUSE | Guests: 8
+    Address: 4502 Reiger Avenue, Dallas, TX
+
+13. 4803-101 
+    UID: 72aa5e56-2c05-411a-843a-591b9207d2c9
+    Status: 🟢 ACTIVE
+    Type: CONDO | Guests: 2
+    Address: 4803 Junius Street, Dallas, TX
+
+14. 4803-102 "The Edition"
+    UID: bb6e1c0c-626d-46c4-8ba9-a9f7afe9cf3b
+    Status: 🟢 ACTIVE
+    Type: CONDO | Guests: 2
+    Address: 4803 Junius Street, Dallas, TX
+
+15. 4803-103 "Savoy" 
+    UID: 0ae9815e-6f95-46d6-b271-cc21d6893634
+    Status: 🟢 ACTIVE
+    Type: CONDO | Guests: 2
+    Address: 4803 Junius Street, Dallas, TX
+
+16. 4803-104 "Ritz at Sir Charles" 
+    UID: 6991b4f1-ab26-43ac-b99b-4861aeeb4cb1
+    Status: 🟢 ACTIVE
+    Type: CONDO | Guests: 2
+    Address: 4803 Junius Street, Dallas, TX
+
+17. 4803-105 "The Langham" 
+    UID: cbb17fe5-b0d9-4563-a67e-d94deb85ee6e
+    Status: 🟢 ACTIVE
+    Type: CONDO | Guests: 2
+    Address: 4803 Junius Street, Dallas, TX
+
+18. 4803-201 "The Carlyle" 
+    UID: 1a64c680-65fe-40e4-9570-22bde81955d5
+    Status: 🟢 ACTIVE
+    Type: CONDO | Guests: 2
+    Address: 4803 Junius Street, Dallas, TX
+
+19. 4803-201 (Floater to be deleted)
+    UID: c4db5986-d9aa-4e42-991a-4e7586e7360c
+    Status: 🔴 INACTIVE
+    Type: APARTMENT | Guests: 3
+    Address: 4803 Junius Street, Dallas, TX
+
+20. 4803-202 
+    UID: 10ef0be2-5c82-4f1a-bf78-54d7f3473ae3
+    Status: 🟢 ACTIVE
+    Type: CONDO | Guests: 2
+    Address: 4803 Junius Street, Dallas, TX
+
+21. 4803-203
+    UID: e4b0bc73-d608-4a3e-b2fe-2906011ae57b
+    Status: 🟢 ACTIVE
+    Type: CONDO | Guests: 2
+    Address: 4803 Junius Street, Dallas, TX
+
+22. 4803-204 "The Plaza" 
+    UID: 4925cd45-6414-4cd1-83ab-1daea66c8e10
+    Status: 🟢 ACTIVE
+    Type: CONDO | Guests: 2
+    Address: 4803 Junius Street, Dallas, TX
+
+23. 6011-220 "Executive Loft" · Spacious and Bright, 2-Story Executive Loft
+    UID: 2383dc71-99b2-4449-a538-1f2f026a18b8
+    Status: 🔴 INACTIVE
+    Type: APARTMENT | Guests: 3
+    Address: 6011 Gaston Avenue, Dallas, TX
+
+📈 STATISTICS
+══════════════════════════════
+Total Properties: 23
+Active: 21 | Inactive: 2
+With Sub-units: 0
+
+By Type:
+  CONDO: 20
+  HOUSE: 1
+  APARTMENT: 2

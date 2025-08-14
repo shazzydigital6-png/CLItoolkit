@@ -1,0 +1,21 @@
+listing_id,platform_status,title,short_description,full_description,neighborhood_overview,house_rules,amenities,tags,filters,bedrooms,bathrooms,max_guests,beds,address_city,address_state,address_country,latitude,longitude,photos,checkin_instructions,fees_taxes_note,last_synced_at
+ac8d730c-2554-4547-986a-dda3bb2a6b62,active,"4417-01 ""The Grant"" · Private Patio",,,,,[],[],[],1,1,2,2,Dallas,TX,US,32.79783,-96.775533,[],,,2025-08-12T21:09:37.379Z
+3fe4130f-a44c-42d1-9132-702af9d66f7c,active,"4417-02 ""Austin"" ",,,,,[],[],[],1,1,2,2,Dallas,TX,US,32.79783,-96.775533,[],,,2025-08-12T21:09:37.379Z
+24b2b422-d78c-4b6c-aa35-7e408cc2f8ae,active,"4417-03 ""Oak"" ·",,,,,[],[],[],1,1,2,2,Dallas,TX,US,32.79783,-96.775533,[],,,2025-08-12T21:09:37.379Z
+da0364e4-9a6c-477d-9cc0-65a5a984bff6,active,"4417-04 ""The Swiss""",,,,,[],[],[],1,1,2,2,Dallas,TX,US,32.79783,-96.775533,[],,,2025-08-12T21:09:37.379Z
+5e5579fb-4039-4b81-8317-24e7fd67187d,active,"4417-05 ""Blue Lux""",,,,,[],[],[],1,1,2,2,Dallas,TX,US,32.79783,-96.775533,[],,,2025-08-12T21:09:37.379Z
+f0a35595-63d8-4164-976d-9e8216245fd8,active,4417-06 Petite Garden,,,,,[],[],[],1,1,2,3,Dallas,TX,US,32.797828674316406,-96.77552795410156,[],,,2025-08-12T21:09:37.379Z
+2233d45f-b621-448a-b411-3c9852da517a,active,"4417-07 ""Jefferson"" · ",,,,,[],[],[],1,1,2,0,Dallas,TX,US,32.79783,-96.775533,[],,,2025-08-12T21:09:37.379Z
+ae7b3948-332e-4284-9044-7d49e1f861ac,active,"4417-09 ""Roosevelt""",,,,,[],[],[],1,1,2,1,Dallas,TX,US,32.7977955,-96.7753565,[],,,2025-08-12T21:09:37.379Z
+eebab2d6-745a-4709-80dc-65c0e36435e6,active,"4417-10 ""Cozy Swiss Retreat"" ",,,,,[],[],[],1,1,2,1,Dallas,TX,US,32.79783,-96.775533,[],,,2025-08-12T21:09:37.379Z
+7fa25226-5a23-40e6-ae79-563974f481d1,active,4417-11 Bluebonnet ·,,,,,[],[],[],1,1,2,2,Dallas,TX,US,32.79783,-96.775533,[],,,2025-08-12T21:09:37.379Z
+fbb08111-4e1e-477c-9412-181f1d545546,active,"4417-12 ""CozyStay"" ",,,,,[],[],[],1,1,2,1,Dallas,TX,US,32.79783,-96.775533,[],,,2025-08-12T21:09:37.379Z
+819d8568-7d16-473e-8552-1fae0bbfd0dd,active,"4502-02 ""Grand Manor"" · Historic Luxury Home in Lakewood",,,,,[],[],[],4,3,8,5,Dallas,TX,US,32.792763,-96.768618,[],,,2025-08-12T21:09:37.379Z
+72aa5e56-2c05-411a-843a-591b9207d2c9,active,4803-101 ,,,,,[],[],[],1,1,2,1,Dallas,TX,US,32.798492431640625,-96.76979064941406,[],,,2025-08-12T21:09:37.379Z
+bb6e1c0c-626d-46c4-8ba9-a9f7afe9cf3b,active,"4803-102 ""The Edition""",,,,,[],[],[],1,1,2,1,Dallas,TX,US,32.798492431640625,-96.76979064941406,[],,,2025-08-12T21:09:37.379Z
+0ae9815e-6f95-46d6-b271-cc21d6893634,active,"4803-103 ""Savoy"" ",,,,,[],[],[],1,1,2,1,Dallas,TX,US,32.798492431640625,-96.76979064941406,[],,,2025-08-12T21:09:37.379Z
+6991b4f1-ab26-43ac-b99b-4861aeeb4cb1,active,"4803-104 ""Ritz at Sir Charles"" ",,,,,[],[],[],1,1,2,1,Dallas,TX,US,32.798492431640625,-96.76979064941406,[],,,2025-08-12T21:09:37.379Z
+cbb17fe5-b0d9-4563-a67e-d94deb85ee6e,active,"4803-105 ""The Langham"" ",,,,,[],[],[],1,1,2,1,Dallas,TX,US,32.798491,-96.769789,[],,,2025-08-12T21:09:37.379Z
+1a64c680-65fe-40e4-9570-22bde81955d5,active,"4803-201 ""The Carlyle"" ",,,,,[],[],[],1,1,2,2,Dallas,TX,US,32.798491,-96.769789,[],,,2025-08-12T21:09:37.379Z
+c4db5986-d9aa-4e42-991a-4e7586e7360c,unlisted,4803-201 (Floater to be deleted),,,,,[],[],[],1,1,3,1,Dallas,TX,US,32.798491,-96.769789,[],,,2025-08-12T21:09:37.379Z
+10ef0be2-5c82-4f1a-bf78-54d7f3473ae3,active,4803-202 ,,,,,[],[],[],1,1,2,1,Dallas,TX,US,32.798496,-96.769788,[],,,2025-08-12T21:09:37.379Z

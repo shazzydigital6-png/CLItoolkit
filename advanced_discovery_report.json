@@ -1,0 +1,496 @@
+{
+  "timestamp": "2025-08-14T00:03:35.610Z",
+  "totalFound": 20,
+  "target": 89,
+  "successRate": 22,
+  "allUIDs": [
+    "ac8d730c-2554-4547-986a-dda3bb2a6b62",
+    "3fe4130f-a44c-42d1-9132-702af9d66f7c",
+    "24b2b422-d78c-4b6c-aa35-7e408cc2f8ae",
+    "da0364e4-9a6c-477d-9cc0-65a5a984bff6",
+    "5e5579fb-4039-4b81-8317-24e7fd67187d",
+    "f0a35595-63d8-4164-976d-9e8216245fd8",
+    "2233d45f-b621-448a-b411-3c9852da517a",
+    "ae7b3948-332e-4284-9044-7d49e1f861ac",
+    "eebab2d6-745a-4709-80dc-65c0e36435e6",
+    "7fa25226-5a23-40e6-ae79-563974f481d1",
+    "fbb08111-4e1e-477c-9412-181f1d545546",
+    "819d8568-7d16-473e-8552-1fae0bbfd0dd",
+    "72aa5e56-2c05-411a-843a-591b9207d2c9",
+    "bb6e1c0c-626d-46c4-8ba9-a9f7afe9cf3b",
+    "0ae9815e-6f95-46d6-b271-cc21d6893634",
+    "6991b4f1-ab26-43ac-b99b-4861aeeb4cb1",
+    "cbb17fe5-b0d9-4563-a67e-d94deb85ee6e",
+    "1a64c680-65fe-40e4-9570-22bde81955d5",
+    "c4db5986-d9aa-4e42-991a-4e7586e7360c",
+    "10ef0be2-5c82-4f1a-bf78-54d7f3473ae3"
+  ],
+  "allResults": [
+    {
+      "method": "REST",
+      "endpoint": "v3.1/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100
+      },
+      "propertiesFound": 20,
+      "newProperties": [
+        "ac8d730c-2554-4547-986a-dda3bb2a6b62",
+        "3fe4130f-a44c-42d1-9132-702af9d66f7c",
+        "24b2b422-d78c-4b6c-aa35-7e408cc2f8ae",
+        "da0364e4-9a6c-477d-9cc0-65a5a984bff6",
+        "5e5579fb-4039-4b81-8317-24e7fd67187d",
+        "f0a35595-63d8-4164-976d-9e8216245fd8",
+        "2233d45f-b621-448a-b411-3c9852da517a",
+        "ae7b3948-332e-4284-9044-7d49e1f861ac",
+        "eebab2d6-745a-4709-80dc-65c0e36435e6",
+        "7fa25226-5a23-40e6-ae79-563974f481d1",
+        "fbb08111-4e1e-477c-9412-181f1d545546",
+        "819d8568-7d16-473e-8552-1fae0bbfd0dd",
+        "72aa5e56-2c05-411a-843a-591b9207d2c9",
+        "bb6e1c0c-626d-46c4-8ba9-a9f7afe9cf3b",
+        "0ae9815e-6f95-46d6-b271-cc21d6893634",
+        "6991b4f1-ab26-43ac-b99b-4861aeeb4cb1",
+        "cbb17fe5-b0d9-4563-a67e-d94deb85ee6e",
+        "1a64c680-65fe-40e4-9570-22bde81955d5",
+        "c4db5986-d9aa-4e42-991a-4e7586e7360c",
+        "10ef0be2-5c82-4f1a-bf78-54d7f3473ae3"
+      ]
+    },
+    {
+      "method": "REST",
+      "endpoint": "v3.2/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082"
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "includeAllAgencies": true
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "includePartnerAgencies": true
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "includeArchived": true
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "includeInactive": true
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "includeDeleted": true
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "status": "all"
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "archived": true
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "active": false
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "published": false
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "visibility": "all"
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "type": "all"
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "includeSubUnits": true
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "includeChildren": true
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "flat": true
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "nested": false
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "expand": "all"
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "include": "archived,inactive,deleted"
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "filter": "none"
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "scope": "all"
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "view": "complete"
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "mode": "full"
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "format": "expanded"
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "headers": {
+          "X-HOSTFULLY-ADMIN": "true"
+        }
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "headers": {
+          "X-HOSTFULLY-SCOPE": "all"
+        }
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "headers": {
+          "X-HOSTFULLY-ACCESS": "full"
+        }
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "headers": {
+          "X-HOSTFULLY-MODE": "complete"
+        }
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "headers": {
+          "X-API-VERSION": "latest"
+        }
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "headers": {
+          "Accept": "application/json;version=latest"
+        }
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "city": "Dallas"
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "state": "TX"
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "address": "4417 Swiss Avenue"
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "address": "4502 Reiger Avenue"
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    },
+    {
+      "method": "REST",
+      "endpoint": "/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100,
+        "address": "4803 Junius Street"
+      },
+      "propertiesFound": 20,
+      "newProperties": []
+    }
+  ],
+  "successfulMethods": [
+    {
+      "method": "REST",
+      "endpoint": "v3.1/properties",
+      "params": {
+        "agencyUid": "8e29a05e-a7bd-4556-9034-3cc0334fb082",
+        "limit": 100
+      },
+      "propertiesFound": 20,
+      "newProperties": [
+        "ac8d730c-2554-4547-986a-dda3bb2a6b62",
+        "3fe4130f-a44c-42d1-9132-702af9d66f7c",
+        "24b2b422-d78c-4b6c-aa35-7e408cc2f8ae",
+        "da0364e4-9a6c-477d-9cc0-65a5a984bff6",
+        "5e5579fb-4039-4b81-8317-24e7fd67187d",
+        "f0a35595-63d8-4164-976d-9e8216245fd8",
+        "2233d45f-b621-448a-b411-3c9852da517a",
+        "ae7b3948-332e-4284-9044-7d49e1f861ac",
+        "eebab2d6-745a-4709-80dc-65c0e36435e6",
+        "7fa25226-5a23-40e6-ae79-563974f481d1",
+        "fbb08111-4e1e-477c-9412-181f1d545546",
+        "819d8568-7d16-473e-8552-1fae0bbfd0dd",
+        "72aa5e56-2c05-411a-843a-591b9207d2c9",
+        "bb6e1c0c-626d-46c4-8ba9-a9f7afe9cf3b",
+        "0ae9815e-6f95-46d6-b271-cc21d6893634",
+        "6991b4f1-ab26-43ac-b99b-4861aeeb4cb1",
+        "cbb17fe5-b0d9-4563-a67e-d94deb85ee6e",
+        "1a64c680-65fe-40e4-9570-22bde81955d5",
+        "c4db5986-d9aa-4e42-991a-4e7586e7360c",
+        "10ef0be2-5c82-4f1a-bf78-54d7f3473ae3"
+      ]
+    }
+  ]
+}
