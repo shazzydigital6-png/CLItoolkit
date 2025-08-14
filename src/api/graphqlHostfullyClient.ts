@@ -389,137 +389,9 @@ export class GraphQLHostfullyClient {
         }
       }
       
-      // Strategy 5: Try different property types and business types
+      // Strategy 5: Try different property types and business types (will fail but we'll skip them)
       console.log(`📡 Strategy 5: Try different property and business types`);
-      
-      const propertyTypes = ['APARTMENT', 'HOUSE', 'CONDO', 'VILLA', 'TOWNHOUSE', 'STUDIO'];
-      const businessTypes = ['RENTAL', 'HOTEL', 'RESORT', 'BNB'];
-      
-      for (const propType of propertyTypes) {
-        try {
-          const typeQuery = `{
-            properties(agencyUid: "${ENV.AGENCY_UID}", propertyType: "${propType}") {
-              uid,
-              name,
-              isActive,
-              mainPicture {
-                tinyThumbnail,
-                largeThumbnail
-              },
-              businessType,
-              propertyType,
-              availability {
-                maxGuests
-              },
-              address {
-                address,
-                address2,
-                zipCode,
-                city,
-                state
-              },
-              subUnits {
-                uid,
-                isActive,
-                name,
-                mainPicture {
-                  tinyThumbnail,
-                  largeThumbnail
-                },
-                availability {
-                  maxGuests
-                },
-                businessType,
-                propertyType,
-                tags
-              },
-              numberOfSubUnits,
-              pricing {
-                currency
-              },
-              tags
-            }
-          }`;
-          
-          const typeResult = await this.executeQuery(typeQuery, `Properties${propType}`);
-          if (typeResult && typeResult.length > 0) {
-            let newCount = 0;
-            typeResult.forEach(prop => {
-              if (!uniqueUIDs.has(prop.uid)) {
-                uniqueUIDs.add(prop.uid);
-                allProperties.push(prop);
-                newCount++;
-              }
-            });
-            console.log(`✅ Type ${propType}: ${typeResult.length} total, ${newCount} new`);
-          }
-        } catch (typeError) {
-          console.log(`❌ Type ${propType} failed`);
-        }
-      }
-      
-      for (const bizType of businessTypes) {
-        try {
-          const bizQuery = `{
-            properties(agencyUid: "${ENV.AGENCY_UID}", businessType: "${bizType}") {
-              uid,
-              name,
-              isActive,
-              mainPicture {
-                tinyThumbnail,
-                largeThumbnail
-              },
-              businessType,
-              propertyType,
-              availability {
-                maxGuests
-              },
-              address {
-                address,
-                address2,
-                zipCode,
-                city,
-                state
-              },
-              subUnits {
-                uid,
-                isActive,
-                name,
-                mainPicture {
-                  tinyThumbnail,
-                  largeThumbnail
-                },
-                availability {
-                  maxGuests
-                },
-                businessType,
-                propertyType,
-                tags
-              },
-              numberOfSubUnits,
-              pricing {
-                currency
-              },
-              tags
-            }
-          }`;
-          
-          const bizResult = await this.executeQuery(bizQuery, `PropertiesBiz${bizType}`);
-          if (bizResult && bizResult.length > 0) {
-            let newCount = 0;
-            bizResult.forEach(prop => {
-              if (!uniqueUIDs.has(prop.uid)) {
-                uniqueUIDs.add(prop.uid);
-                allProperties.push(prop);
-                newCount++;
-              }
-            });
-            console.log(`✅ BusinessType ${bizType}: ${bizResult.length} total, ${newCount} new`);
-          }
-        } catch (bizError) {
-          console.log(`❌ BusinessType ${bizType} failed`);
-        }
-      }
+      console.log(`⚠️ Skipping property/business type filters (known to fail)`);
       
       // Strategy 6: Try to get inactive/archived properties
       console.log(`📡 Strategy 6: Try inactive and archived properties`);
@@ -666,6 +538,42 @@ export class GraphQLHostfullyClient {
           }
         }
       }
+
+      // Strategy 8: Test pagination parameters
+      console.log(`\n📡 Strategy 8: Testing pagination strategies`);
+      const paginationResults = await this.tryPaginationStrategies();
+      paginationResults.forEach(prop => {
+        if (!uniqueUIDs.has(prop.uid)) {
+          uniqueUIDs.add(prop.uid);
+          allProperties.push(prop);
+        }
+      });
+
+      // Strategy 9: Test agency contexts  
+      console.log(`\n📡 Strategy 9: Testing agency contexts`);
+      const agencyResults = await this.tryAgencyContexts();
+      agencyResults.forEach(prop => {
+        if (!uniqueUIDs.has(prop.uid)) {
+          uniqueUIDs.add(prop.uid);
+          allProperties.push(prop);
+        }
+      });
+
+      // Strategy 10: Targeted discovery based on found patterns
+      console.log(`\n📡 Strategy 10: Targeted discovery for missing units`);
+      const targetedResults = await this.discoverMissingUnits();
+      targetedResults.forEach(prop => {
+        if (!uniqueUIDs.has(prop.uid)) {
+          uniqueUIDs.add(prop.uid);
+          allProperties.push(prop);
+        }
+      });
+
+      // If we still don't have enough, run schema discovery for debugging
+      if (allProperties.length < 50) {
+        console.log(`\n📡 Strategy 11: Schema discovery for debugging`);
+        await this.discoverGraphQLSchema();
+      }
       
       console.log(`\n🎉 COLLECTION COMPLETE!`);
       console.log(`📊 Total unique properties found: ${allProperties.length}`);
@@ -745,6 +653,455 @@ export class GraphQLHostfullyClient {
     }
     
     console.log(`\n💡 DEBUGGING COMPLETE - Check results above`);
+  }
+
+  // Helper method to extract properties from various response formats
+  private extractProperties(data: any): any[] {
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.properties)) return data.properties;
+    if (Array.isArray(data?.data)) return data.data;
+    if (Array.isArray(data?.results)) return data.results;
+    if (Array.isArray(data?.items)) return data.items;
+    return [];
+  }
+
+  // Discover GraphQL schema to understand available arguments
+  async discoverGraphQLSchema(): Promise<void> {
+    console.log("🔍 Discovering GraphQL Schema...");
+    
+    const introspectionQuery = `
+      query IntrospectionQuery {
+        __schema {
+          queryType {
+            fields {
+              name
+              args {
+                name
+                type {
+                  name
+                  kind
+                  ofType {
+                    name
+                    kind
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await this.http.post('/graphql', {
+        operationName: "IntrospectionQuery",
+        query: introspectionQuery,
+        variables: {}
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-HOSTFULLY-APIKEY': ENV.APIKEY,
+        }
+      });
+
+      const schema = response.data?.data?.__schema;
+      if (schema) {
+        const propertiesField = schema.queryType.fields.find((f: any) => f.name === 'properties');
+        
+        if (propertiesField) {
+          console.log("📋 Available 'properties' query arguments:");
+          propertiesField.args.forEach((arg: any) => {
+            const typeName = arg.type.name || arg.type.ofType?.name || 'Unknown';
+            console.log(`   ${arg.name}: ${typeName}`);
+          });
+        }
+
+        console.log("\n📋 All available query fields:");
+        schema.queryType.fields.forEach((field: any) => {
+          console.log(`   ${field.name}`);
+        });
+      }
+    } catch (error: any) {
+      console.log("❌ Schema introspection failed:", error?.response?.status);
+      
+      // Fallback: try some common argument names
+      console.log("\n🔍 Testing common GraphQL arguments...");
+      const testArgs = [
+        'limit', 'offset', 'skip', 'first', 'after', 'before', 'last',
+        'agencyUid', 'agencyId', 'ownerId', 'organizationId',
+        'isActive', 'status', 'published', 'archived',
+        'city', 'state', 'country', 'address',
+        'minimumGuests', 'maximumGuests', 'minGuests', 'maxGuests',
+        'minimumBedrooms', 'maximumBedrooms', 'minBedrooms', 'maxBedrooms',
+        'propertyTypes', 'businessTypes', 'types',
+        'includeInactive', 'includeArchived', 'includeAll'
+      ];
+
+      for (const arg of testArgs) {
+        try {
+          const testQuery = `{
+            properties(agencyUid: "${ENV.AGENCY_UID}", ${arg}: 1) {
+              uid
+            }
+          }`;
+          
+          const testResponse = await this.http.post('/graphql', {
+            query: testQuery
+          }, {
+            headers: {
+              'Content-Type': 'application/json',
+              'X-HOSTFULLY-APIKEY': ENV.APIKEY,
+            }
+          });
+
+          if (!testResponse.data?.errors) {
+            console.log(`   ✅ ${arg} - VALID`);
+          }
+        } catch (e) {
+          // Most will fail, ignore
+        }
+      }
+    }
+  }
+
+  // Test pagination strategies
+  private async tryPaginationStrategies(): Promise<GraphQLProperty[]> {
+    console.log(`📡 Testing GraphQL pagination strategies`);
+    const allProperties: GraphQLProperty[] = [];
+    const uniqueUIDs = new Set<string>();
+
+    // Try different pagination approaches
+    const paginationStrategies = [
+      // Offset-based pagination
+      { name: 'offset-0', params: 'offset: 0, limit: 100' },
+      { name: 'offset-20', params: 'offset: 20, limit: 100' },
+      { name: 'offset-40', params: 'offset: 40, limit: 100' },
+      { name: 'offset-60', params: 'offset: 60, limit: 100' },
+      
+      // First/after cursor pagination
+      { name: 'first-50', params: 'first: 50' },
+      { name: 'first-100', params: 'first: 100' },
+      
+      // Different limit sizes
+      { name: 'limit-5', params: 'limit: 5' },
+      { name: 'limit-15', params: 'limit: 15' },
+      { name: 'limit-25', params: 'limit: 25' },
+      { name: 'limit-50', params: 'limit: 50' },
+      { name: 'limit-100', params: 'limit: 100' },
+      
+      // Skip-based
+      { name: 'skip-20', params: 'skip: 20, limit: 50' },
+      { name: 'skip-40', params: 'skip: 40, limit: 50' },
+    ];
+
+    for (const strategy of paginationStrategies) {
+      try {
+        const query = `{
+          properties(agencyUid: "${ENV.AGENCY_UID}", ${strategy.params}) {
+            uid,
+            name,
+            isActive,
+            mainPicture {
+              tinyThumbnail,
+              largeThumbnail
+            },
+            businessType,
+            propertyType,
+            availability {
+              maxGuests
+            },
+            address {
+              address,
+              address2,
+              zipCode,
+              city,
+              state
+            },
+            subUnits {
+              uid,
+              isActive,
+              name
+            },
+            numberOfSubUnits,
+            pricing {
+              currency
+            },
+            tags
+          }
+        }`;
+        
+        const result = await this.executeQuery(query, `Pagination${strategy.name}`);
+        if (result && result.length > 0) {
+          let newCount = 0;
+          result.forEach(prop => {
+            if (!uniqueUIDs.has(prop.uid)) {
+              uniqueUIDs.add(prop.uid);
+              allProperties.push(prop);
+              newCount++;
+            }
+          });
+          console.log(`✅ ${strategy.name}: ${result.length} total, ${newCount} new properties`);
+        } else {
+          console.log(`❌ ${strategy.name}: No results or error`);
+        }
+      } catch (error) {
+        console.log(`❌ ${strategy.name}: Failed`);
+      }
+    }
+
+    return allProperties;
+  }
+
+  // Test different agency contexts
+  private async tryAgencyContexts(): Promise<GraphQLProperty[]> {
+    console.log(`📡 Testing different agency contexts`);
+    const allProperties: GraphQLProperty[] = [];
+    const uniqueUIDs = new Set<string>();
+
+    const agencyStrategies = [
+      // No agency filter
+      { name: 'no-agency', query: 'properties' },
+      
+      // Different agency parameter names
+      { name: 'agencyId', query: `properties(agencyId: "${ENV.AGENCY_UID}")` },
+      { name: 'ownerId', query: `properties(ownerId: "${ENV.AGENCY_UID}")` },
+      { name: 'organizationId', query: `properties(organizationId: "${ENV.AGENCY_UID}")` },
+      
+      // Try without any filters but with high limits
+      { name: 'global-search', query: 'properties(limit: 200)' },
+    ];
+
+    for (const strategy of agencyStrategies) {
+      try {
+        const query = `{
+          ${strategy.query} {
+            uid,
+            name,
+            isActive,
+            businessType,
+            propertyType,
+            availability {
+              maxGuests
+            },
+            address {
+              city,
+              state
+            },
+            numberOfSubUnits,
+            tags
+          }
+        }`;
+        
+        const result = await this.executeQuery(query, `Agency${strategy.name}`);
+        if (result && result.length > 0) {
+          let newCount = 0;
+          result.forEach(prop => {
+            if (!uniqueUIDs.has(prop.uid)) {
+              uniqueUIDs.add(prop.uid);
+              allProperties.push(prop);
+              newCount++;
+            }
+          });
+          console.log(`✅ Agency ${strategy.name}: ${result.length} total, ${newCount} new properties`);
+        }
+      } catch (error) {
+        console.log(`❌ Agency ${strategy.name}: Failed`);
+      }
+    }
+
+    return allProperties;
+  }
+
+  // Targeted discovery based on known property patterns
+  async discoverMissingUnits(): Promise<GraphQLProperty[]> {
+    console.log("🎯 TARGETED DISCOVERY: Finding missing units based on patterns");
+    console.log("═".repeat(60));
+    
+    const allProperties: GraphQLProperty[] = [];
+    const uniqueUIDs = new Set<string>();
+    
+    // Based on your property list, search for specific missing units
+    const targetSearches = [
+      // Missing 4417 units
+      { pattern: "4417-08", desc: "Missing Swiss Avenue unit 08" },
+      { pattern: "4417-13", desc: "Possible Swiss Avenue unit 13+" },
+      { pattern: "4417-14", desc: "Possible Swiss Avenue unit 14+" },
+      { pattern: "4417-15", desc: "Possible Swiss Avenue unit 15+" },
+      
+      // Missing 4502 units  
+      { pattern: "4502-01", desc: "Missing Reiger Avenue unit 01" },
+      { pattern: "4502-03", desc: "Possible Reiger Avenue unit 03+" },
+      { pattern: "4502-04", desc: "Possible Reiger Avenue unit 04+" },
+      
+      // Missing 4803 higher floors
+      { pattern: "4803-301", desc: "Possible Junius 3rd floor units" },
+      { pattern: "4803-302", desc: "Possible Junius 3rd floor units" },
+      { pattern: "4803-401", desc: "Possible Junius 4th floor units" },
+      
+      // Missing 6011 units
+      { pattern: "6011-221", desc: "Possible Gaston Avenue unit 221+" },
+      { pattern: "6011-219", desc: "Possible Gaston Avenue unit 219-" },
+      { pattern: "6011-101", desc: "Possible Gaston Avenue 1st floor" },
+      
+      // Search by address patterns
+      { pattern: "Swiss Avenue", desc: "All Swiss Avenue properties" },
+      { pattern: "Junius Street", desc: "All Junius Street properties" },
+      { pattern: "Reiger Avenue", desc: "All Reiger Avenue properties" },
+      { pattern: "Gaston Avenue", desc: "All Gaston Avenue properties" },
+      
+      // Search by Dallas neighborhoods
+      { pattern: "Lakewood", desc: "Lakewood neighborhood properties" },
+      { pattern: "East Dallas", desc: "East Dallas properties" },
+      { pattern: "Deep Ellum", desc: "Deep Ellum properties" },
+    ];
+
+    for (const search of targetSearches) {
+      try {
+        console.log(`🔍 Searching: ${search.desc} (${search.pattern})`);
+        
+        // Try REST API searches since GraphQL name search isn't supported
+        const restSearches = [
+          { endpoint: "/properties", params: { q: search.pattern } },
+          { endpoint: "/properties", params: { search: search.pattern } },
+          { endpoint: "/properties", params: { name: search.pattern } },
+          { endpoint: "/properties", params: { address: search.pattern } },
+          { endpoint: "/properties/search", params: { query: search.pattern } },
+        ];
+
+        for (const restSearch of restSearches) {
+          try {
+            const response = await this.http.get(restSearch.endpoint, {
+              params: { 
+                agencyUid: ENV.AGENCY_UID, 
+                limit: 100,
+                ...restSearch.params 
+              },
+              headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
+            });
+
+            const properties = this.extractProperties(response.data);
+            let newCount = 0;
+            properties.forEach((prop: any) => {
+              if (prop.uid && !uniqueUIDs.has(prop.uid)) {
+                uniqueUIDs.add(prop.uid);
+                // Convert to GraphQL format
+                const convertedProp: GraphQLProperty = {
+                  uid: prop.uid,
+                  name: prop.name || prop.title || '',
+                  isActive: prop.isActive !== false,
+                  mainPicture: prop.mainPicture || {},
+                  businessType: prop.businessType || '',
+                  propertyType: prop.propertyType || '',
+                  availability: { maxGuests: prop.maxGuests || prop.availability?.maxGuests || 0 },
+                  address: {
+                    address: prop.address?.address || '',
+                    address2: prop.address?.address2 || '',
+                    zipCode: prop.address?.zipCode || '',
+                    city: prop.address?.city || '',
+                    state: prop.address?.state || ''
+                  },
+                  subUnits: prop.subUnits || [],
+                  numberOfSubUnits: prop.numberOfSubUnits || 0,
+                  pricing: { currency: prop.pricing?.currency || 'USD' },
+                  tags: prop.tags || []
+                };
+                allProperties.push(convertedProp);
+                newCount++;
+              }
+            });
+            
+            if (newCount > 0) {
+              console.log(`   ✅ REST ${restSearch.endpoint}: ${newCount} new properties!`);
+              break; // Found some, don't need to try other REST methods
+            }
+          } catch (e) {
+            // Expected for many endpoints
+          }
+        }
+
+      } catch (error) {
+        console.log(`   ❌ ${search.pattern}: Search failed`);
+      }
+    }
+
+    // Try direct UID guessing based on patterns
+    await this.guessUIDsFromPatterns(uniqueUIDs, allProperties);
+
+    console.log(`\n🎯 Targeted discovery found: ${allProperties.length} additional properties`);
+    return allProperties;
+  }
+
+  // Attempt to guess UIDs based on patterns from known UIDs
+  private async guessUIDsFromPatterns(knownUIDs: Set<string>, allProperties: GraphQLProperty[]): Promise<void> {
+    console.log(`\n🔮 Attempting UID pattern discovery...`);
+    
+    // Extract patterns from known UIDs
+    const knownUIDList = [
+      "ac8d730c-2554-4547-986a-dda3bb2a6b62", // 4417-01
+      "3fe4130f-a44c-42d1-9132-702af9d66f7c", // 4417-02
+      "24b2b422-d78c-4b6c-aa35-7e408cc2f8ae", // 4417-03
+    ];
+
+    // Try to find sequential UIDs by checking nearby patterns
+    for (const baseUID of knownUIDList.slice(0, 3)) {
+      const parts = baseUID.split('-');
+      if (parts.length === 5) {
+        // Try incrementing/decrementing the last part
+        const lastPart = parts[4];
+        const lastHex = parseInt(lastPart, 16);
+        
+        for (let i = -10; i <= 10; i++) {
+          if (i === 0) continue;
+          
+          const newHex = (lastHex + i).toString(16).padStart(lastPart.length, '0');
+          const testUID = [...parts.slice(0, 4), newHex].join('-');
+          
+          if (!knownUIDs.has(testUID)) {
+            try {
+              const property = await this.getIndividualProperty(testUID);
+              if (property) {
+                knownUIDs.add(testUID);
+                allProperties.push(property);
+                console.log(`   🎉 Found via UID pattern: ${testUID} - ${property.name}`);
+              }
+            } catch (e) {
+              // Expected for most attempts
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Get individual property by UID
+  private async getIndividualProperty(uid: string): Promise<GraphQLProperty | null> {
+    try {
+      const query = `{
+        property(uid: "${uid}") {
+          uid, name, isActive, businessType, propertyType,
+          availability { maxGuests },
+          address { address, address2, zipCode, city, state },
+          mainPicture { tinyThumbnail, largeThumbnail },
+          subUnits { uid, name }, numberOfSubUnits,
+          pricing { currency }, tags
+        }
+      }`;
+
+      const response = await this.http.post('/graphql', {
+        operationName: "GetProperty",
+        query,
+        variables: {}
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-HOSTFULLY-APIKEY': ENV.APIKEY,
+        }
+      });
+
+      return response.data?.data?.property || null;
+    } catch (e) {
+      return null;
+    }
   }
 
   // Compatibility method for CLI - alias for getAllProperties

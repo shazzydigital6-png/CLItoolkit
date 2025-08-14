@@ -296,24 +296,175 @@ program
     await bulkUpdateFromGraphQLCSV(csvFile, opts.backup);
   });
 
-// Advanced discovery command (enhanced version)
+// Enhanced discovery commands
+program
+  .command("discover-schema")
+  .description("🔍 Discover GraphQL schema to understand available arguments")
+  .action(async () => {
+    const client = new HostfullyClient();
+    await client.discoverGraphQLSchema();
+  });
+
+program
+  .command("discover-missing")
+  .description("🎯 Target discovery for missing property units based on patterns")
+  .action(async () => {
+    const client = new HostfullyClient();
+    console.log("🎯 Starting targeted discovery for missing units...\n");
+    
+    const missingProperties = await client.discoverMissingUnits();
+    
+    console.log(`\n📊 TARGETED DISCOVERY RESULTS:`);
+    console.log(`Found ${missingProperties.length} additional properties`);
+    
+    if (missingProperties.length > 0) {
+      console.log(`\n📋 New properties found:`);
+      missingProperties.forEach((prop, i) => {
+        console.log(`   ${i+1}. ${prop.uid} - ${prop.name || 'Unnamed'}`);
+        console.log(`      Address: ${prop.address?.address}, ${prop.address?.city}`);
+      });
+    } else {
+      console.log(`\n❌ No additional properties found through targeted discovery`);
+      console.log(`Consider running 'npm start discover-schema' to debug available parameters`);
+    }
+  });
+
+program
+  .command("test-high-limit")
+  .description("🚀 Test very high limits to bypass pagination entirely")
+  .action(async () => {
+    console.log("🚀 Testing high limits to bypass pagination...\n");
+    
+    const client = new HostfullyClient();
+    
+    // Test GraphQL with very high limits
+    const testLimits = [500, 1000, 2000];
+    
+    for (const limit of testLimits) {
+      try {
+        console.log(`📡 Testing GraphQL with limit: ${limit}`);
+        
+        const query = `{
+          properties(agencyUid: "${ENV.AGENCY_UID}", limit: ${limit}) {
+            uid, name, isActive,
+            address { address, city, state }
+          }
+        }`;
+        
+        const response = await (client as any).executeQuery(query, `HighLimit${limit}`);
+        console.log(`   ✅ Limit ${limit}: Found ${response.length} properties`);
+        
+        if (response.length > 23) {
+          console.log(`   🎉 SUCCESS! Found more than 23 properties with limit ${limit}!`);
+          console.log(`   Sample new properties:`);
+          response.slice(23, 28).forEach((prop: any, i: number) => {
+            console.log(`      ${i+24}. ${prop.uid} - ${prop.name}`);
+          });
+          break;
+        }
+        
+      } catch (error: any) {
+        console.log(`   ❌ Limit ${limit}: Failed - ${error?.message}`);
+      }
+    }
+    
+    // Test REST API with high limits
+    console.log(`\n📡 Testing REST API with high limits...`);
+    
+    for (const limit of testLimits) {
+      try {
+        const restResponse = await axios.get(`${ENV.BASE}/properties`, {
+          params: { 
+            agencyUid: ENV.AGENCY_UID, 
+            limit: limit 
+          },
+          headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
+        });
+        
+        const properties = restResponse.data?.properties || restResponse.data?.data || [];
+        console.log(`   ✅ REST limit ${limit}: Found ${properties.length} properties`);
+        
+        if (properties.length > 23) {
+          console.log(`   🎉 SUCCESS! REST API found more than 23 properties with limit ${limit}!`);
+          break;
+        }
+        
+      } catch (error: any) {
+        console.log(`   ❌ REST limit ${limit}: Failed - ${error?.response?.status}`);
+      }
+    }
+  });
+
+// Fixed discover-all command
 program
   .command("discover-all")
-  .description("🔬 Advanced property discovery to find all 89 properties")
-  .option("--throttle <ms>", "Delay between API calls (ms)", (v) => parseInt(v,10), 1000)
+  .description("🔬 Advanced property discovery to find all 89 properties") 
+  .option("--throttle <ms>", "Delay between API calls (ms)", "1500")
   .action(async (opts: any) => {
-    if (Number.isFinite(opts.throttle)) process.env.THROTTLE_MS = String(opts.throttle);
+    const throttleMs = parseInt(opts.throttle, 10);
+    if (Number.isFinite(throttleMs)) {
+      process.env.THROTTLE_MS = String(throttleMs);
+    }
     
     try {
       const { runAdvancedDiscovery } = await import("./advancedDiscovery");
       await runAdvancedDiscovery();
     } catch (e: any) {
-      console.error("❌ Advanced discovery not available. Creating the advanced discovery tool...");
-      console.error("Please create src/cli/advancedDiscovery.ts with the provided code.");
+      console.error("❌ Advanced discovery not available. Using built-in discovery...");
+      
+      // Fallback to our enhanced GraphQL discovery
+      const client = new HostfullyClient();
+      console.log("🔬 Running comprehensive property discovery...\n");
+      
+      const allProperties = await client.getAllProperties();
+      
+      console.log(`\n📊 COMPREHENSIVE DISCOVERY RESULTS:`);
+      console.log(`Total properties found: ${allProperties.length}`);
+      console.log(`Expected: 89 properties`);
+      console.log(`Success rate: ${Math.round(allProperties.length / 89 * 100)}%`);
+      
+      if (allProperties.length > 23) {
+        console.log(`🎉 SUCCESS! Found ${allProperties.length - 23} additional properties!`);
+      }
     }
   });
 
-// Safe testing command (only if file exists)
+// Test workaround strategies
+program
+  .command("test-workaround")
+  .description("Test the workaround client strategies")
+  .option("--debug", "Enable debug logging", false)
+  .option("--throttle <ms>", "Delay between API calls (ms)", (v) => parseInt(v,10), 1000)
+  .action(async (opts: any) => {
+    if (opts.debug) process.env.DEBUG = "true";
+    if (Number.isFinite(opts.throttle)) process.env.THROTTLE_MS = String(opts.throttle);
+    
+    console.log("🧪 Testing workaround strategies...\n");
+    
+    const client = new HostfullyClient();
+    const properties = await client.listAllProperties();
+    
+    console.log(`\n📊 RESULTS:`);
+    console.log(`Total properties found: ${properties.length}`);
+    console.log(`Expected: 89 properties`);
+    console.log(`Success rate: ${Math.round(properties.length / 89 * 100)}%`);
+    
+    if (properties.length > 20) {
+      console.log(`🎉 SUCCESS! Found more than the stuck 20 properties.`);
+    } else {
+      console.log(`⚠️ Still stuck at ${properties.length} properties.`);
+    }
+    
+    // Show sample of what we found
+    if (properties.length > 0) {
+      console.log(`\n📋 Sample properties:`);
+      properties.slice(0, 5).forEach((p, i) => {
+        console.log(`   ${i+1}. ${p.uid} - ${p.name || p.title || 'Unnamed'}`);
+      });
+    }
+  });
+
+// Safe testing command
 program
   .command("safe-test")
   .description("Safely test property update capabilities without affecting live data")
@@ -360,7 +511,7 @@ program
     }
   });
 
-// Legacy export command - may need separate implementation files
+// Legacy export command
 program
   .command("export")
   .description("Export listings to CSV from Hostfully (REST API)")
@@ -400,38 +551,5 @@ program
     }
   });
 
-program
-  .command("test-workaround")
-  .description("Test the workaround client strategies")
-  .option("--debug", "Enable debug logging", false)
-  .option("--throttle <ms>", "Delay between API calls (ms)", (v) => parseInt(v,10), 1000)
-  .action(async (opts: any) => {
-    if (opts.debug) process.env.DEBUG = "true";
-    if (Number.isFinite(opts.throttle)) process.env.THROTTLE_MS = String(opts.throttle);
-    
-    console.log("🧪 Testing workaround strategies...\n");
-    
-    const client = new HostfullyClient();
-    const properties = await client.listAllProperties();
-    
-    console.log(`\n📊 RESULTS:`);
-    console.log(`Total properties found: ${properties.length}`);
-    console.log(`Expected: 87 properties`);
-    console.log(`Success rate: ${Math.round(properties.length / 87 * 100)}%`);
-    
-    if (properties.length > 20) {
-      console.log(`🎉 SUCCESS! Found more than the stuck 20 properties.`);
-    } else {
-      console.log(`⚠️ Still stuck at ${properties.length} properties.`);
-    }
-    
-    // Show sample of what we found
-    if (properties.length > 0) {
-      console.log(`\n📋 Sample properties:`);
-      properties.slice(0, 5).forEach((p, i) => {
-        console.log(`   ${i+1}. ${p.uid} - ${p.name || p.title || 'Unnamed'}`);
-      });
-    }
-  });
 
 program.parse(process.argv);
