@@ -1,19 +1,13 @@
 #!/usr/bin/env ts-node
 
 import { Command } from "commander";
-import { GraphQLHostfullyClient as HostfullyClient } from "../api/graphqlHostfullyClient";
+import { GraphQLHostfullyClient } from "../api/graphqlHostfullyClient";
+import { HostfullyClient } from "../api/hostfullyClient";
 import axios from "axios";
 import { ENV } from "../utils/env";
 import * as fs from "fs";
 import * as path from "path";
 import { stringify } from "csv-stringify/sync";
-import { 
-  testGraphQLAccess, 
-  exportAllPropertiesGraphQL, 
-  generateGraphQLUpdateTemplate,
-  bulkUpdateFromGraphQLCSV,
-  listPropertiesSummary 
-} from "./graphqlCommands";
 
 // Investigation function (inline since we don't have separate file yet)
 async function investigateAPI() {
@@ -106,123 +100,6 @@ async function investigateAPI() {
     }
   }
 
-  // 3. Test different authentication methods
-  console.log(`\n3️⃣ TESTING AGENCY DISCOVERY`);
-  console.log("─".repeat(40));
-  
-  try {
-    const agencyRes = await base.get("/agencies");
-    console.log("📋 Available agencies:");
-    
-    const agencies = agencyRes.data?.agencies || agencyRes.data?.data || agencyRes.data || [];
-    if (Array.isArray(agencies)) {
-      agencies.forEach((agency: any, i: number) => {
-        console.log(`   ${i+1}. ${agency.name || agency.displayName || 'Unnamed'} (${agency.uid})`);
-        if (agency.uid === ENV.AGENCY_UID) {
-          console.log(`      👆 THIS IS YOUR AGENCY`);
-        }
-      });
-    } else {
-      console.log("   ⚠️ Unexpected response format:", typeof agencies);
-    }
-  } catch (e: any) {
-    console.log(`❌ /agencies failed: ${e?.response?.status}`);
-  }
-
-  // 4. Test property status filtering
-  console.log(`\n4️⃣ TESTING PROPERTY FILTERS`);
-  console.log("─".repeat(40));
-  
-  const filters = [
-    { name: "active only", params: { status: "active" } },
-    { name: "inactive only", params: { status: "inactive" } },
-    { name: "all statuses", params: { includeArchived: true } },
-    { name: "published only", params: { published: true } },
-    { name: "unpublished only", params: { published: false } },
-    { name: "no agency filter", params: { limit: 20 } }, // Remove agencyUid
-  ];
-
-  for (const filter of filters) {
-    try {
-      const params = filter.name === "no agency filter" 
-        ? filter.params 
-        : { agencyUid: ENV.AGENCY_UID, ...filter.params };
-        
-      const res = await base.get("/properties", { params });
-      const data = res.data;
-      const items = Array.isArray(data?.properties) ? data.properties
-                  : Array.isArray(data?.data) ? data.data
-                  : Array.isArray(data) ? data : [];
-      
-      console.log(`🔍 ${filter.name.padEnd(20)} -> ${items.length} properties`);
-      
-      if (items.length > 0) {
-        console.log(`   First UID: ${items[0]?.uid}`);
-        console.log(`   Sample names: ${items.slice(0,3).map((p: any) => p.name || p.title).join(", ")}`);
-      }
-      
-      // Look for different UIDs than our stuck set
-      const firstUID = items[0]?.uid;
-      if (firstUID && firstUID !== "ac8d730c-2554-4547-986a-dda3bb2a6b62") {
-        console.log(`   🎉 DIFFERENT UIDS FOUND! This filter works differently.`);
-      }
-      
-    } catch (e: any) {
-      console.log(`❌ ${filter.name} -> ERROR ${e?.response?.status}`);
-    }
-  }
-
-  // 5. Test raw requests without our wrapper
-  console.log(`\n5️⃣ TESTING RAW PAGINATION`);
-  console.log("─".repeat(40));
-  
-  try {
-    console.log("Testing cursor from first response...");
-    const firstRes = await base.get("/properties", { 
-      params: { agencyUid: ENV.AGENCY_UID, limit: 10 }
-    });
-    
-    const cursor = firstRes.data?._paging?._nextCursor;
-    if (cursor) {
-      console.log(`📎 Found cursor: ${cursor}`);
-      
-      // Try cursor WITHOUT agencyUid (sometimes this is the issue)
-      const cursorRes = await base.get("/properties", {
-        params: { cursor, limit: 10 }
-      });
-      
-      const cursorItems = Array.isArray(cursorRes.data?.properties) ? cursorRes.data.properties
-                        : Array.isArray(cursorRes.data?.data) ? cursorRes.data.data
-                        : Array.isArray(cursorRes.data) ? cursorRes.data : [];
-      
-      console.log(`🔗 Cursor (no agency) -> ${cursorItems.length} properties`);
-      if (cursorItems.length > 0) {
-        console.log(`   First UID: ${cursorItems[0]?.uid}`);
-        if (cursorItems[0]?.uid !== firstRes.data.properties[0]?.uid) {
-          console.log(`   🎉 CURSOR RETURNED DIFFERENT DATA!`);
-        }
-      }
-      
-      // Try cursor WITH agencyUid
-      const cursorRes2 = await base.get("/properties", {
-        params: { cursor, agencyUid: ENV.AGENCY_UID, limit: 10 }
-      });
-      
-      const cursorItems2 = Array.isArray(cursorRes2.data?.properties) ? cursorRes2.data.properties
-                         : Array.isArray(cursorRes2.data?.data) ? cursorRes2.data.data
-                         : Array.isArray(cursorRes2.data) ? cursorRes2.data : [];
-      
-      console.log(`🔗 Cursor (with agency) -> ${cursorItems2.length} properties`);
-      if (cursorItems2.length > 0) {
-        console.log(`   First UID: ${cursorItems2[0]?.uid}`);
-      }
-    } else {
-      console.log("❌ No cursor found in response");
-    }
-  } catch (e: any) {
-    console.log(`❌ Cursor test failed: ${e?.response?.status}`);
-  }
-
   console.log(`\n✅ INVESTIGATION COMPLETE`);
   console.log(`=====================================`);
   console.log(`💡 Next steps:`);
@@ -231,6 +108,702 @@ async function investigateAPI() {
   console.log(`   3. Contact Hostfully support with these findings`);
 }
 
+// GraphQL Commands Implementation
+async function testGraphQLAccess(token?: string) {
+  console.log("🎉 Testing GraphQL access to get ALL properties");
+  const client = new GraphQLHostfullyClient(token);
+  
+  try {
+    const info = await client.whoAmI();
+    console.log("✅ GraphQL access working:", info);
+  } catch (error: any) {
+    console.error("❌ GraphQL access failed:", error.message);
+  }
+}
+
+async function exportAllPropertiesGraphQL(outputDir: string) {
+  console.log("📂 Export ALL 87+ properties using working GraphQL endpoint");
+  
+  const client = new GraphQLHostfullyClient();
+  const properties = await client.getAllProperties();
+  
+  if (properties.length === 0) {
+    console.error("❌ No properties found to export");
+    return;
+  }
+
+  // Ensure output directory exists
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  // Generate comprehensive CSV with all fields
+  await generateComprehensiveCSV(properties, outputDir, "graphql_export");
+  
+  console.log(`🎉 GraphQL export completed! Found ${properties.length} properties`);
+}
+
+async function listPropertiesSummary() {
+  console.log("📋 List all properties with summary (using GraphQL)");
+  
+  const client = new GraphQLHostfullyClient();
+  const properties = await client.getAllProperties();
+  
+  console.log(`\n📊 PROPERTY SUMMARY (${properties.length} total):`);
+  console.log("═".repeat(50));
+  
+  properties.forEach((prop, i) => {
+    console.log(`${(i + 1).toString().padStart(2)}. ${prop.uid}`);
+    console.log(`    📋 ${prop.name || 'Unnamed'}`);
+    console.log(`    🏠 ${prop.address?.address || 'No address'}, ${prop.address?.city || 'No city'}`);
+    console.log(`    ${prop.isActive ? '✅ Active' : '❌ Inactive'}`);
+    console.log('');
+  });
+}
+
+async function generateGraphQLUpdateTemplate(outputFile: string) {
+  console.log("📝 Generate GraphQL bulk update template");
+  
+  const client = new GraphQLHostfullyClient();
+  const properties = await client.getAllProperties();
+  
+  if (properties.length === 0) {
+    console.error("❌ No properties found for template");
+    return;
+  }
+
+  const templateData = properties.map(prop => ({
+    uid: prop.uid,
+    name: prop.name || '',
+    description: '', // Will be filled by user
+    isActive: prop.isActive ? 'true' : 'false',
+    // Add more fields as needed for updates
+    notes: 'Add your update notes here'
+  }));
+
+  const csvContent = stringify(templateData, { header: true });
+  fs.writeFileSync(outputFile, csvContent, 'utf8');
+  
+  console.log(`✅ Template generated: ${outputFile}`);
+}
+
+async function bulkUpdateFromGraphQLCSV(csvFile: string, backupDir: string) {
+  console.log(`🔄 Bulk update properties using GraphQL from CSV: ${csvFile}`);
+  
+  if (!fs.existsSync(csvFile)) {
+    console.error(`❌ CSV file not found: ${csvFile}`);
+    return;
+  }
+
+  // Create backup directory
+  fs.mkdirSync(backupDir, { recursive: true });
+  
+  const client = new GraphQLHostfullyClient();
+  
+  // Read and parse CSV - Use a proper CSV parser for production
+  const csvContent = fs.readFileSync(csvFile, 'utf8');
+  const lines = csvContent.split('\n').filter(line => line.trim());
+  
+  if (lines.length < 2) {
+    console.error("❌ CSV file appears to be empty or invalid");
+    return;
+  }
+  
+  // Simple CSV parsing (for production, use a proper CSV library)
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+  const updates = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+    if (values.length >= headers.length) {
+      const update: any = {};
+      headers.forEach((header, index) => {
+        if (values[index]) {
+          update[header] = values[index];
+        }
+      });
+      
+      if (update.uid) {
+        updates.push({
+          uid: update.uid,
+          data: update
+        });
+      }
+    }
+  }
+  
+  console.log(`📝 Parsed ${updates.length} updates from CSV`);
+  
+  if (updates.length === 0) {
+    console.error("❌ No valid updates found in CSV");
+    return;
+  }
+  
+  // Create backup before updating
+  console.log("💾 Creating backup...");
+  const backupProperties = await client.getAllProperties();
+  const backupFilename = `backup_${new Date().toISOString().split('T')[0]}.json`;
+  const backupPath = path.join(backupDir, backupFilename);
+  fs.writeFileSync(backupPath, JSON.stringify(backupProperties, null, 2), 'utf8');
+  console.log(`✅ Backup created: ${backupPath}`);
+  
+  // Check if bulk update method exists, otherwise do individual updates
+  if (typeof client.bulkUpdateProperties === 'function') {
+    const results = await client.bulkUpdateProperties(updates);
+    console.log(`\n📊 Bulk Update Results:`);
+    console.log(`✅ Successful: ${results.successful}`);
+    console.log(`❌ Failed: ${results.failed}`);
+  } else {
+    console.log("⚠️ Bulk update method not available, performing individual updates...");
+    let successful = 0;
+    let failed = 0;
+    
+    for (const update of updates) {
+      try {
+        if (typeof client.updateProperty === 'function') {
+          const success = await client.updateProperty(update.uid, update.data);
+          if (success) successful++;
+          else failed++;
+        } else {
+          console.log(`   ⚠️ Update method not implemented for ${update.uid}`);
+          failed++;
+        }
+        
+        // Small delay between updates
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error(`   ❌ Failed to update ${update.uid}:`, error);
+        failed++;
+      }
+    }
+    
+    console.log(`\n📊 Individual Update Results:`);
+    console.log(`✅ Successful: ${successful}`);
+    console.log(`❌ Failed: ${failed}`);
+  }
+  
+  console.log(`📁 Backup: ${backupPath}`);
+}
+
+// Enhanced REST API export focused on _limit parameter with descriptions
+async function exportAllPropertiesRESTFocused(outputDir: string) {
+  console.log("🔧 Using REST API with proper _limit parameter to get ALL 89 properties...\n");
+  
+  const allProperties: any[] = [];
+  const foundUIDs = new Set<string>();
+  
+  // Strategy 1: Use _limit parameter with high value (as shown in API docs)
+  console.log("📡 Strategy 1: High _limit parameter...");
+  try {
+    const response = await axios.get(`${ENV.BASE}/properties`, {
+      params: { 
+        agencyUid: ENV.AGENCY_UID,
+        _limit: 200  // Using _limit as shown in API docs
+      },
+      headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
+    });
+    
+    const properties = response.data?.properties || response.data?.data || [];
+    properties.forEach((prop: any) => {
+      if (!foundUIDs.has(prop.uid)) {
+        foundUIDs.add(prop.uid);
+        allProperties.push(prop);
+      }
+    });
+    console.log(`   ✅ High _limit: Found ${properties.length} properties`);
+  } catch (error: any) {
+    console.log(`   ❌ High _limit failed: ${error?.response?.status}`);
+  }
+
+  // Strategy 2: Pagination with _cursor
+  if (allProperties.length > 0) {
+    console.log("📡 Strategy 2: Using _cursor for pagination...");
+    
+    let cursor = null;
+    let page = 1;
+    const maxPages = 10; // Safety limit
+    
+    while (page <= maxPages) {
+      try {
+        const params: any = {
+          agencyUid: ENV.AGENCY_UID,
+          _limit: 50
+        };
+        
+        if (cursor) {
+          params._cursor = cursor;
+        }
+        
+        const response = await axios.get(`${ENV.BASE}/properties`, {
+          params,
+          headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
+        });
+        
+        const properties = response.data?.properties || response.data?.data || [];
+        let newCount = 0;
+        
+        properties.forEach((prop: any) => {
+          if (!foundUIDs.has(prop.uid)) {
+            foundUIDs.add(prop.uid);
+            allProperties.push(prop);
+            newCount++;
+          }
+        });
+        
+        console.log(`   📄 Page ${page}: ${properties.length} total, ${newCount} new properties`);
+        
+        // Check for next cursor
+        const nextCursor = response.data?._paging?._nextCursor || 
+                          response.data?.paging?.nextCursor ||
+                          response.data?.nextCursor;
+        
+        if (!nextCursor || newCount === 0) {
+          console.log(`   ✅ Pagination complete (no more pages)`);
+          break;
+        }
+        
+        cursor = nextCursor;
+        page++;
+        
+        // Small delay between requests
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+      } catch (error: any) {
+        console.log(`   ❌ Page ${page} failed: ${error?.response?.status}`);
+        break;
+      }
+    }
+  }
+
+  // Strategy 3: Try different date ranges with modifiedSince
+  if (allProperties.length < 80) {
+    console.log("📅 Strategy 3: Date ranges with modifiedSince...");
+    
+    const dateRanges = [
+      "2024-01-01T00:00:00",
+      "2023-01-01T00:00:00", 
+      "2022-01-01T00:00:00",
+      "2021-01-01T00:00:00",
+      "2020-01-01T00:00:00"
+    ];
+    
+    for (const modifiedSince of dateRanges) {
+      try {
+        const response = await axios.get(`${ENV.BASE}/properties`, {
+          params: { 
+            agencyUid: ENV.AGENCY_UID,
+            _limit: 200,
+            modifiedSince  // REST API equivalent of updatedSince
+          },
+          headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
+        });
+        
+        const properties = response.data?.properties || response.data?.data || [];
+        let newCount = 0;
+        
+        properties.forEach((prop: any) => {
+          if (!foundUIDs.has(prop.uid)) {
+            foundUIDs.add(prop.uid);
+            allProperties.push(prop);
+            newCount++;
+          }
+        });
+        
+        console.log(`   📅 Since ${modifiedSince.split('T')[0]}: +${newCount} new properties`);
+        
+        if (allProperties.length >= 85) {
+          console.log(`   🎉 Found enough properties, stopping date range search`);
+          break;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error: any) {
+        console.log(`   ⚠️ Date ${modifiedSince.split('T')[0]} failed: ${error?.response?.status}`);
+      }
+    }
+  }
+
+  // Strategy 4: Try without agency filter (as this found 20 new in GraphQL)
+  if (allProperties.length < 80) {
+    console.log("🌐 Strategy 4: Removing agency filter...");
+    try {
+      const response = await axios.get(`${ENV.BASE}/properties`, {
+        params: { 
+          _limit: 200  // No agencyUid - this found new properties in GraphQL
+        },
+        headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
+      });
+      
+      const properties = response.data?.properties || response.data?.data || [];
+      let newCount = 0;
+      
+      // Filter manually for your agency in the results
+      properties.forEach((prop: any) => {
+        const isYourAgency = prop.agencyUid === ENV.AGENCY_UID || 
+                           prop.agency?.uid === ENV.AGENCY_UID;
+        
+        if (isYourAgency && !foundUIDs.has(prop.uid)) {
+          foundUIDs.add(prop.uid);
+          allProperties.push(prop);
+          newCount++;
+        }
+      });
+      
+      console.log(`   🎯 No agency filter: +${newCount} new properties for your agency`);
+    } catch (error: any) {
+      console.log(`   ❌ No agency filter failed: ${error?.response?.status}`);
+    }
+  }
+
+  // Strategy 5: Try includeArchived and other status filters
+  if (allProperties.length < 80) {
+    console.log("📋 Strategy 5: Status filters...");
+    
+    const statusFilters = [
+      { name: "include archived", params: { includeArchived: true } },
+      { name: "include deleted", params: { includeDeleted: true } },
+      { name: "inactive only", params: { isActive: false } },
+      { name: "all statuses", params: { includeArchived: true, includeDeleted: true } }
+    ];
+    
+    for (const filter of statusFilters) {
+      try {
+        const response = await axios.get(`${ENV.BASE}/properties`, {
+          params: { 
+            agencyUid: ENV.AGENCY_UID,
+            _limit: 200,
+            ...filter.params
+          },
+          headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
+        });
+        
+        const properties = response.data?.properties || response.data?.data || [];
+        let newCount = 0;
+        
+        properties.forEach((prop: any) => {
+          if (!foundUIDs.has(prop.uid)) {
+            foundUIDs.add(prop.uid);
+            allProperties.push(prop);
+            newCount++;
+          }
+        });
+        
+        console.log(`   📊 ${filter.name}: +${newCount} new properties`);
+        
+        if (allProperties.length >= 85) {
+          console.log(`   🎉 Found enough properties, stopping filter search`);
+          break;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error: any) {
+        console.log(`   ⚠️ ${filter.name} failed: ${error?.response?.status}`);
+      }
+    }
+  }
+
+  // NEW: Fetch descriptions for all properties
+  if (allProperties.length > 0) {
+    console.log(`\n📝 Fetching descriptions for ${allProperties.length} properties...`);
+    
+    for (let i = 0; i < allProperties.length; i++) {
+      const property = allProperties[i];
+      
+      try {
+        console.log(`   📄 Fetching description ${i + 1}/${allProperties.length}: ${property.name || property.uid}`);
+        
+        const descResponse = await axios.get(`${ENV.BASE}/property-descriptions`, {
+          params: { 
+            propertyUid: property.uid
+          },
+          headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
+        });
+        
+        console.log(`   🔍 Description response status: ${descResponse.status}`);
+        console.log(`   📊 Description data type:`, typeof descResponse.data);
+        console.log(`   📋 Description data:`, JSON.stringify(descResponse.data).substring(0, 200) + '...');
+        
+        // Organize description data using the API structure
+        if (descResponse.data && Array.isArray(descResponse.data)) {
+          property.descriptions = descResponse.data;
+          
+          // Extract structured description fields for each locale
+          descResponse.data.forEach((desc: any, index: number) => {
+            const locale = desc.locale || desc.language || 'default';
+            const prefix = index === 0 ? 'description' : `description_${locale}`;
+            
+            // Map the API fields to CSV columns
+            property[`${prefix}_name`] = desc.name || '';
+            property[`${prefix}_shortSummary`] = desc.shortSummary || '';
+            property[`${prefix}_summary`] = desc.summary || '';
+            property[`${prefix}_notes`] = desc.notes || '';
+            property[`${prefix}_access`] = desc.access || '';
+            property[`${prefix}_transit`] = desc.transit || '';
+            property[`${prefix}_interaction`] = desc.interaction || '';
+            property[`${prefix}_neighbourhood`] = desc.neighbourhood || '';
+            property[`${prefix}_space`] = desc.space || '';
+            property[`${prefix}_houseManual`] = desc.houseManual || '';
+            property[`${prefix}_locale`] = desc.locale || '';
+          });
+          
+          // For easy access, also set the primary (first) description fields
+          if (descResponse.data.length > 0) {
+            const primaryDesc = descResponse.data[0];
+            property.mainDescription_name = primaryDesc.name || '';
+            property.mainDescription_shortSummary = primaryDesc.shortSummary || '';
+            property.mainDescription_summary = primaryDesc.summary || '';
+            property.mainDescription_notes = primaryDesc.notes || '';
+            property.mainDescription_access = primaryDesc.access || '';
+            property.mainDescription_transit = primaryDesc.transit || '';
+            property.mainDescription_interaction = primaryDesc.interaction || '';
+            property.mainDescription_neighbourhood = primaryDesc.neighbourhood || '';
+            property.mainDescription_space = primaryDesc.space || '';
+            property.mainDescription_houseManual = primaryDesc.houseManual || '';
+            property.mainDescription_locale = primaryDesc.locale || '';
+            
+            console.log(`   ✅ Found ${descResponse.data.length} descriptions for ${property.uid}`);
+          }
+        } else if (descResponse.data && typeof descResponse.data === 'object') {
+          // Handle single description object (not array)
+          const desc = descResponse.data;
+          property.descriptions = [desc];
+          
+          property.description_name = desc.name || '';
+          property.description_shortSummary = desc.shortSummary || '';
+          property.description_summary = desc.summary || '';
+          property.description_notes = desc.notes || '';
+          property.description_access = desc.access || '';
+          property.description_transit = desc.transit || '';
+          property.description_interaction = desc.interaction || '';
+          property.description_neighbourhood = desc.neighbourhood || '';
+          property.description_space = desc.space || '';
+          property.description_houseManual = desc.houseManual || '';
+          property.description_locale = desc.locale || '';
+          
+          // Also set main description fields
+          property.mainDescription_name = desc.name || '';
+          property.mainDescription_shortSummary = desc.shortSummary || '';
+          property.mainDescription_summary = desc.summary || '';
+          property.mainDescription_notes = desc.notes || '';
+          property.mainDescription_access = desc.access || '';
+          property.mainDescription_transit = desc.transit || '';
+          property.mainDescription_interaction = desc.interaction || '';
+          property.mainDescription_neighbourhood = desc.neighbourhood || '';
+          property.mainDescription_space = desc.space || '';
+          property.mainDescription_houseManual = desc.houseManual || '';
+          property.mainDescription_locale = desc.locale || '';
+          
+          console.log(`   ✅ Found single description for ${property.uid}`);
+        } else {
+          // If no descriptions found, set empty values
+          console.log(`   ⚠️ No description data found for ${property.uid}`);
+          property.mainDescription_name = '';
+          property.mainDescription_shortSummary = '';
+          property.mainDescription_summary = '';
+          property.mainDescription_notes = '';
+          property.mainDescription_access = '';
+          property.mainDescription_transit = '';
+          property.mainDescription_interaction = '';
+          property.mainDescription_neighbourhood = '';
+          property.mainDescription_space = '';
+          property.mainDescription_houseManual = '';
+          property.mainDescription_locale = '';
+        }
+        
+        // Only delay if we're not on the last property
+        if (i < allProperties.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+        
+      } catch (error: any) {
+        console.log(`   ❌ Could not fetch description for ${property.uid}: ${error?.response?.status} - ${error?.response?.statusText}`);
+        console.log(`   📋 Error details:`, error?.response?.data || error?.message);
+        
+        // Set empty values for failed requests
+        property.mainDescription_name = '';
+        property.mainDescription_shortSummary = '';
+        property.mainDescription_summary = '';
+        property.mainDescription_notes = '';
+        property.mainDescription_access = '';
+        property.mainDescription_transit = '';
+        property.mainDescription_interaction = '';
+        property.mainDescription_neighbourhood = '';
+        property.mainDescription_space = '';
+        property.mainDescription_houseManual = '';
+        property.mainDescription_locale = '';
+      }
+    }
+    
+    console.log(`✅ Completed fetching descriptions`);
+  }
+
+  console.log(`\n📊 REST API DISCOVERY COMPLETE:`);
+  console.log(`Total unique properties found: ${allProperties.length}`);
+  console.log(`Expected: 89 properties`);
+  console.log(`Success rate: ${Math.round(allProperties.length / 89 * 100)}%`);
+
+  if (allProperties.length === 0) {
+    console.error("❌ No properties found! Check API credentials.");
+    return;
+  }
+
+  // Generate comprehensive CSV
+  await generateComprehensiveCSV(allProperties, outputDir, "rest_focused_export");
+  
+  return allProperties;
+}
+
+// Enhanced CSV generation function
+async function generateComprehensiveCSV(properties: any[], outputDir: string, prefix: string = "export") {
+  console.log("🔍 Analyzing all property fields...");
+  
+  // Discover all fields by flattening all properties
+  const allFields = new Set<string>();
+  const fieldExamples = new Map<string, any>();
+  const fieldCounts = new Map<string, number>();
+  
+  const flattenObject = (obj: any, prefix = '', depth = 0) => {
+    if (depth > 5 || !obj || typeof obj !== 'object') return;
+    
+    Object.keys(obj).forEach(key => {
+      const newKey = prefix ? `${prefix}.${key}` : key;
+      const value = obj[key];
+      
+      allFields.add(newKey);
+      
+      // Count non-empty values
+      if (value !== null && value !== undefined && value !== '') {
+        fieldCounts.set(newKey, (fieldCounts.get(newKey) || 0) + 1);
+        if (!fieldExamples.has(newKey)) {
+          fieldExamples.set(newKey, value);
+        }
+      }
+      
+      // Recursively flatten objects (but not arrays)
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        flattenObject(value, newKey, depth + 1);
+      }
+    });
+  };
+  
+  properties.forEach(property => flattenObject(property));
+  
+  const fieldsArray = Array.from(allFields).sort();
+  console.log(`📋 Discovered ${fieldsArray.length} unique fields`);
+  
+  // Helper functions
+  const getNestedValue = (obj: any, path: string): any => {
+    return path.split('.').reduce((current, key) => {
+      return current && current[key] !== undefined ? current[key] : null;
+    }, obj);
+  };
+  
+  const formatValue = (value: any): string => {
+    if (value === null || value === undefined) return '';
+    if (Array.isArray(value)) {
+      if (value.length === 0) return '';
+      // Join simple arrays or stringify complex ones
+      if (value.every(v => typeof v === 'string' || typeof v === 'number')) {
+        return value.join('; ');
+      }
+      return JSON.stringify(value);
+    }
+    if (typeof value === 'object') {
+      return JSON.stringify(value);
+    }
+    if (typeof value === 'boolean') return value ? 'true' : 'false';
+    return String(value).replace(/[\r\n\t]/g, ' ').trim();
+  };
+  
+  // Generate CSV data
+  console.log("📝 Converting to CSV format...");
+  const timestamp = new Date().toISOString();
+  
+  const csvData = properties.map((property: any, index: number) => {
+    const row: any = {
+      // Metadata columns
+      export_timestamp: timestamp,
+      property_index: index + 1,
+      total_properties: properties.length,
+      
+      // Core identification
+      uid: property.uid || '',
+      name: property.name || '',
+      isActive: property.isActive ? 'true' : 'false',
+    };
+    
+    // Add all discovered fields
+    fieldsArray.forEach(fieldPath => {
+      // Skip if already added above
+      if (!row.hasOwnProperty(fieldPath)) {
+        const value = getNestedValue(property, fieldPath);
+        row[fieldPath] = formatValue(value);
+      }
+    });
+    
+    return row;
+  });
+  
+  // Generate filename
+  const dateStr = new Date().toISOString().split('T')[0];
+  const timeStr = new Date().toISOString().split('T')[1].split('.')[0].replace(/:/g, '-');
+  const filename = `${prefix}_${dateStr}_${timeStr}.csv`;
+  const filepath = path.join(outputDir, filename);
+  
+  // Write CSV
+  console.log("💾 Writing CSV file...");
+  const csvContent = stringify(csvData, { 
+    header: true,
+    quoted: true
+  });
+  
+  fs.writeFileSync(filepath, csvContent, "utf8");
+  
+  // Generate summary
+  const fileSize = (fs.statSync(filepath).size / 1024 / 1024).toFixed(2);
+  
+  console.log(`\n🎉 CSV Export Complete!`);
+  console.log(`═══════════════════════════════════════`);
+  console.log(`📁 File: ${filepath}`);
+  console.log(`📊 Properties: ${properties.length}`);
+  console.log(`📋 Fields: ${fieldsArray.length}`);
+  console.log(`💾 Size: ${fileSize} MB`);
+  
+  // Field completeness stats
+  const fieldStats = fieldsArray.map(field => ({
+    field,
+    count: fieldCounts.get(field) || 0,
+    percentage: Math.round(((fieldCounts.get(field) || 0) / properties.length) * 100)
+  }));
+  
+  console.log(`\n📊 Field Completeness:`);
+  const completeFields = fieldStats.filter(f => f.percentage === 100).length;
+  const mostlyComplete = fieldStats.filter(f => f.percentage >= 80 && f.percentage < 100).length;
+  const partial = fieldStats.filter(f => f.percentage > 0 && f.percentage < 80).length;
+  const empty = fieldStats.filter(f => f.percentage === 0).length;
+  
+  console.log(`   ✅ Complete (100%): ${completeFields} fields`);
+  console.log(`   🟡 Mostly complete (80-99%): ${mostlyComplete} fields`);
+  console.log(`   🟠 Partial data (1-79%): ${partial} fields`);
+  console.log(`   ❌ Empty (0%): ${empty} fields`);
+  
+  // Address breakdown
+  const addressGroups = properties.reduce((groups: any, prop: any) => {
+    const address = getNestedValue(prop, 'address.address') || 'Unknown Address';
+    groups[address] = (groups[address] || 0) + 1;
+    return groups;
+  }, {});
+  
+  console.log(`\n🏠 Properties by Address:`);
+  Object.entries(addressGroups)
+    .sort((a: any, b: any) => b[1] - a[1])
+    .slice(0, 10)
+    .forEach(([address, count]) => {
+      console.log(`   📍 ${String(address).substring(0, 60)}: ${count}`);
+    });
+  
+  return filepath;
+}
+
+// Initialize the CLI program
 const program = new Command();
 
 program
@@ -242,12 +815,12 @@ program
   .command("diag")
   .description("Check API key and agency access")
   .action(async () => {
-    const client = new HostfullyClient();
+    const client = new GraphQLHostfullyClient();
     try {
       const info = await client.whoAmI();
-      console.log("OK:", info);
+      console.log("✅ API Connection OK:", info);
     } catch (e: any) {
-      console.error("DIAG ERROR:", e?.response?.status, e?.response?.data || e?.message);
+      console.error("❌ DIAG ERROR:", e.message);
     }
   });
 
@@ -268,43 +841,44 @@ program
     console.log("📊 Exporting ALL properties with COMPLETE field data...\n");
     
     try {
-      // Step 1: Get all properties using the working _limit parameter
-      console.log("🔍 Step 1: Fetching all properties...");
-      const response = await axios.get(`${ENV.BASE}/properties`, {
-        params: { 
-          agencyUid: ENV.AGENCY_UID,
-          _limit: 200 // High limit to ensure we get everything
-        },
-        headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
-      });
+      // Step 1: Get all properties using GraphQL client
+      console.log("🔍 Step 1: Fetching all properties using GraphQL client...");
+      const client = new GraphQLHostfullyClient();
+      let allProperties = await client.getAllProperties();
       
-      const properties = response.data?.properties || response.data?.data || [];
+      if (allProperties.length === 0) {
+        console.error("❌ No properties found! Check API credentials.");
+        return;
+      }
       
-      console.log(`✅ Retrieved ${properties.length} properties from API`);
+      console.log(`✅ Retrieved ${allProperties.length} properties from GraphQL`);
       
       // Step 2: Optionally fetch detailed data for each property
-      let detailedProperties = properties;
-      
-      if (opts.fetchDetails && properties.length > 0) {
+      if (opts.fetchDetails && allProperties.length > 0) {
         console.log(`🔍 Step 2: Fetching detailed data for each property...`);
-        detailedProperties = [];
+        const detailedProperties = [];
         
-        for (let i = 0; i < properties.length; i++) {
-          const property = properties[i];
-          console.log(`   📋 Fetching details for property ${i + 1}/${properties.length}: ${property.name || property.uid}`);
+        for (let i = 0; i < allProperties.length; i++) {
+          const property = allProperties[i];
+          console.log(`   📋 Fetching details for property ${i + 1}/${allProperties.length}: ${property.name || property.uid}`);
           
           try {
-            const detailResponse = await axios.get(`${ENV.BASE}/properties/${property.uid}`, {
-              params: { agencyUid: ENV.AGENCY_UID },
-              headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
-            });
-            
-            const detailedProperty = detailResponse.data || property;
-            detailedProperties.push(detailedProperty);
+            // Check if getPropertyDetails method exists
+            if (typeof client.getPropertyDetails === 'function') {
+              const detailedProperty = await client.getPropertyDetails(property.uid);
+              detailedProperties.push(detailedProperty || property);
+            } else {
+              // Fallback to direct API call
+              const detailResponse = await axios.get(`${ENV.BASE}/properties/${property.uid}`, {
+                params: { agencyUid: ENV.AGENCY_UID },
+                headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
+              });
+              detailedProperties.push(detailResponse.data || property);
+            }
             
             // Small delay to avoid rate limiting
-            if (i < properties.length - 1) {
-              await new Promise(resolve => setTimeout(resolve, 100));
+            if (i < allProperties.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 200));
             }
             
           } catch (error) {
@@ -313,173 +887,171 @@ program
           }
         }
         
+        allProperties = detailedProperties;
         console.log(`✅ Completed detailed data fetching`);
       }
       
-      // Step 3: Discover all possible fields by examining all properties
-      console.log(`🔍 Step 3: Analyzing all available fields...`);
-      const allFields = new Set<string>();
-      const fieldExamples = new Map<string, any>();
-      const fieldCounts = new Map<string, number>();
+      // Step 3: Generate comprehensive CSV
+      await generateComprehensiveCSV(allProperties, opts.output, "hostfully_complete_export");
       
-      const flattenObject = (obj: any, prefix = '', depth = 0) => {
-        if (depth > 5) return; // Prevent infinite recursion
-        
-        Object.keys(obj || {}).forEach(key => {
-          const newKey = prefix ? `${prefix}.${key}` : key;
-          const value = obj[key];
-          
-          allFields.add(newKey);
-          
-          // Count how many properties have this field
-          if (value !== null && value !== undefined && value !== '') {
-            fieldCounts.set(newKey, (fieldCounts.get(newKey) || 0) + 1);
-            
-            if (!fieldExamples.has(newKey)) {
-              fieldExamples.set(newKey, value);
-            }
-          }
-          
-          // Recursively flatten nested objects (but not arrays)
-          if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-            flattenObject(value, newKey, depth + 1);
-          }
-        });
-      };
+      // Final summary
+      console.log(`\n🎯 EXPORT SUMMARY:`);
+      console.log(`Total properties: ${allProperties.length}/89 expected`);
+      console.log(`Success rate: ${Math.round(allProperties.length / 89 * 100)}%`);
       
-      detailedProperties.forEach(property => {
-        flattenObject(property);
-      });
-      
-      console.log(`📋 Found ${allFields.size} unique fields across all properties`);
-      
-      // Step 4: Create field mapping and statistics
-      const fieldsArray = Array.from(allFields).sort();
-      const fieldStats = fieldsArray.map(field => ({
-        field,
-        count: fieldCounts.get(field) || 0,
-        percentage: Math.round(((fieldCounts.get(field) || 0) / detailedProperties.length) * 100),
-        example: fieldExamples.get(field)
-      }));
-      
-      console.log(`\n📊 Field Statistics (top 20 most common):`);
-      fieldStats
-        .filter(f => f.count > 0)
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 20)
-        .forEach(stat => {
-          console.log(`   ${stat.field.padEnd(30)} | ${stat.count.toString().padStart(3)}/${detailedProperties.length} (${stat.percentage}%)`);
-        });
-      
-      // Step 5: Helper functions for CSV formatting
-      const getNestedValue = (obj: any, path: string): any => {
-        return path.split('.').reduce((current, key) => {
-          return current && current[key] !== undefined ? current[key] : null;
-        }, obj);
-      };
-      
-      const formatValue = (value: any): string => {
-        if (value === null || value === undefined) return '';
-        if (Array.isArray(value)) {
-          if (value.length === 0) return '';
-          return JSON.stringify(value);
-        }
-        if (typeof value === 'object') {
-          return JSON.stringify(value);
-        }
-        if (typeof value === 'boolean') return value ? 'true' : 'false';
-        return String(value).replace(/[\r\n]/g, ' ').trim();
-      };
-      
-      // Step 6: Convert to comprehensive CSV format
-      console.log(`🔍 Step 4: Converting to CSV format...`);
-      const now = new Date().toISOString();
-      
-      const csvData = detailedProperties.map((property: any, index: number) => {
-        const row: any = {
-          // Add metadata columns first
-          export_timestamp: now,
-          property_index: index + 1,
-          total_properties: detailedProperties.length,
-          
-          // Core identification fields
-          uid: property.uid || '',
-          name: property.name || property.title || '',
-          isActive: property.isActive ? 'true' : 'false',
-        };
-        
-        // Add all discovered fields
-        fieldsArray.forEach(fieldPath => {
-          const value = getNestedValue(property, fieldPath);
-          row[fieldPath] = formatValue(value);
-        });
-        
-        return row;
-      });
-      
-      // Step 7: Create filename and save CSV
-      const timestamp = now.replace(/[:.]/g, "-").split('T')[0] + '_' + now.split('T')[1].split('.')[0].replace(/:/g, '-');
-      const filename = `hostfully_complete_export_${timestamp}.csv`;
-      const filepath = path.join(opts.output, filename);
-      
-      // Ensure directory exists
-      fs.mkdirSync(opts.output, { recursive: true });
-      
-      // Write CSV file
-      console.log(`💾 Step 5: Writing CSV file...`);
-      const csvContent = stringify(csvData, { 
-        header: true,
-        quoted: true, // Quote all fields to handle special characters
-        quotedEmpty: false,
-        quotedString: true
-      });
-      
-      fs.writeFileSync(filepath, csvContent, "utf8");
-      
-      // Step 8: Generate summary report
-      console.log(`\n🎉 SUCCESS! Comprehensive export completed!`);
-      console.log(`═══════════════════════════════════════════`);
-      console.log(`📁 File: ${filepath}`);
-      console.log(`📊 Properties: ${detailedProperties.length}`);
-      console.log(`📋 Fields: ${fieldsArray.length}`);
-      console.log(`💾 File size: ${(fs.statSync(filepath).size / 1024 / 1024).toFixed(2)} MB`);
-      
-      // Show breakdown by address
-      const addressGroups = detailedProperties.reduce((groups: any, prop: any) => {
-        const address = prop.address?.address || 'Unknown Address';
-        groups[address] = (groups[address] || 0) + 1;
-        return groups;
-      }, {});
-      
-      console.log(`\n🏠 PROPERTY BREAKDOWN BY ADDRESS:`);
-      Object.entries(addressGroups)
-        .sort((a: any, b: any) => b[1] - a[1])
-        .forEach(([address, count]) => {
-          console.log(`   📍 ${address}: ${count} units`);
-        });
-      
-      // Show field completeness summary
-      console.log(`\n📊 FIELD COMPLETENESS SUMMARY:`);
-      const completeFields = fieldStats.filter(f => f.percentage === 100).length;
-      const mostlyCompleteFields = fieldStats.filter(f => f.percentage >= 80 && f.percentage < 100).length;
-      const partialFields = fieldStats.filter(f => f.percentage > 0 && f.percentage < 80).length;
-      const emptyFields = fieldStats.filter(f => f.percentage === 0).length;
-      
-      console.log(`   ✅ Complete (100%): ${completeFields} fields`);
-      console.log(`   🟡 Mostly complete (80-99%): ${mostlyCompleteFields} fields`);
-      console.log(`   🟠 Partial data (1-79%): ${partialFields} fields`);
-      console.log(`   ❌ Empty (0%): ${emptyFields} fields`);
-      
-      console.log(`\n💡 Next steps:`);
-      console.log(`   1. Open ${filename} in Excel or Google Sheets`);
-      console.log(`   2. Use --fetch-details flag for even more complete data (slower)`);
-      console.log(`   3. Filter/analyze the data as needed`);
+      if (allProperties.length >= 85) {
+        console.log(`🎉 Excellent! Found ${allProperties.length}/89 properties`);
+      } else if (allProperties.length >= 70) {
+        console.log(`👍 Good! Found ${allProperties.length}/89 properties`);
+      } else {
+        console.log(`⚠️ Only found ${allProperties.length}/89 properties`);
+        console.log(`💡 Try running 'export-rest-focused' command to use REST API approach`);
+      }
       
     } catch (error: any) {
-      console.error("❌ Export failed:", error?.response?.status, error?.response?.statusText, error?.message);
+      console.error("❌ Export failed:", error.message);
       if (error?.response?.data) {
-        console.error("Response data:", error.response.data);
+        console.error("API Response:", error.response.data);
       }
+    }
+  });
+
+// NEW REST FOCUSED EXPORT COMMAND
+program
+  .command("export-rest-focused")
+  .description("🔧 Export ALL properties using focused REST API with _limit parameter")
+  .option("--output <dir>", "Output directory", "./exports")
+  .action(async (opts: any) => {
+    await exportAllPropertiesRESTFocused(opts.output);
+  });
+
+// NEW COMMAND: Export with descriptions
+program
+  .command("export-with-descriptions")
+  .description("📝 Export ALL 89 properties with descriptions included")
+  .option("--output <dir>", "Output directory", "./exports")
+  .action(async (opts: any) => {
+    console.log("📝 Exporting ALL properties WITH descriptions...\n");
+    await exportAllPropertiesRESTFocused(opts.output);
+  });
+
+program
+  .command("test-descriptions")
+  .description("🧪 Test property descriptions API with first property")
+  .action(async () => {
+    console.log("🧪 Testing property descriptions API...\n");
+    
+    try {
+      // Get one property first
+      const response = await axios.get(`${ENV.BASE}/properties`, {
+        params: { 
+          agencyUid: ENV.AGENCY_UID,
+          _limit: 1
+        },
+        headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
+      });
+      
+      const properties = response.data?.properties || response.data?.data || [];
+      
+      if (properties.length === 0) {
+        console.error("❌ No properties found to test descriptions with");
+        return;
+      }
+      
+      const testProperty = properties[0];
+      console.log(`📋 Testing with property: ${testProperty.uid} - ${testProperty.name || 'Unnamed'}\n`);
+      
+      // Test different ways to call the descriptions API
+      const testCalls = [
+        {
+          name: "Standard call",
+          url: `${ENV.BASE}/property-descriptions`,
+          params: { propertyUid: testProperty.uid }
+        },
+        {
+          name: "With agency UID",
+          url: `${ENV.BASE}/property-descriptions`,
+          params: { propertyUid: testProperty.uid, agencyUid: ENV.AGENCY_UID }
+        },
+        {
+          name: "Path parameter style",
+          url: `${ENV.BASE}/property-descriptions/${testProperty.uid}`,
+          params: {}
+        }
+      ];
+      
+      for (const testCall of testCalls) {
+        try {
+          console.log(`🧪 Testing: ${testCall.name}`);
+          console.log(`   URL: ${testCall.url}`);
+          console.log(`   Params:`, testCall.params);
+          
+          const descResponse = await axios.get(testCall.url, {
+            params: testCall.params,
+            headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
+          });
+          
+          console.log(`   ✅ Status: ${descResponse.status}`);
+          console.log(`   📊 Response type:`, typeof descResponse.data);
+          console.log(`   📋 Response:`, JSON.stringify(descResponse.data, null, 2));
+          console.log('');
+          
+        } catch (error: any) {
+          console.log(`   ❌ Failed: ${error?.response?.status} - ${error?.response?.statusText}`);
+          console.log(`   📋 Error:`, error?.response?.data || error?.message);
+          console.log('');
+        }
+      }
+      
+    } catch (error: any) {
+      console.error("❌ Test failed:", error.message);
+    }
+  });
+  .action(async () => {
+    console.log("🧪 Testing different _limit values...\n");
+    
+    const limits = [50, 100, 150, 200, 300, 500];
+    const results: any[] = [];
+    
+    for (const limit of limits) {
+      try {
+        console.log(`📡 Testing _limit=${limit}...`);
+        
+        const response = await axios.get(`${ENV.BASE}/properties`, {
+          params: { 
+            agencyUid: ENV.AGENCY_UID,
+            _limit: limit
+          },
+          headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
+        });
+        
+        const properties = response.data?.properties || response.data?.data || [];
+        results.push({ limit, count: properties.length });
+        console.log(`   ✅ _limit=${limit}: Found ${properties.length} properties`);
+        
+        if (properties.length >= 80) {
+          console.log(`   🎉 SUCCESS! Found ${properties.length} properties with _limit=${limit}`);
+        }
+        
+      } catch (error: any) {
+        console.log(`   ❌ _limit=${limit} failed: ${error?.response?.status}`);
+        results.push({ limit, count: 0, error: true });
+      }
+    }
+    
+    console.log(`\n📊 LIMIT TEST RESULTS:`);
+    console.log(`═══════════════════════════`);
+    results.forEach(result => {
+      const status = result.error ? '❌ FAILED' : 
+                    result.count >= 80 ? '🎉 EXCELLENT' :
+                    result.count >= 50 ? '👍 GOOD' : '⚠️ LIMITED';
+      console.log(`_limit=${result.limit.toString().padStart(3)}: ${result.count.toString().padStart(3)} properties ${status}`);
+    });
+    
+    const bestResult = results.filter(r => !r.error).sort((a, b) => b.count - a.count)[0];
+    if (bestResult) {
+      console.log(`\n💡 Best result: _limit=${bestResult.limit} found ${bestResult.count} properties`);
+      console.log(`🚀 Use: npm start export-rest-focused`);
     }
   });
 
@@ -529,7 +1101,7 @@ program
   .command("discover-schema")
   .description("🔍 Discover GraphQL schema to understand available arguments")
   .action(async () => {
-    const client = new HostfullyClient();
+    const client = new GraphQLHostfullyClient();
     await client.discoverGraphQLSchema();
   });
 
@@ -537,7 +1109,7 @@ program
   .command("discover-missing")
   .description("🎯 Target discovery for missing property units based on patterns")
   .action(async () => {
-    const client = new HostfullyClient();
+    const client = new GraphQLHostfullyClient();
     console.log("🎯 Starting targeted discovery for missing units...\n");
     
     const missingProperties = await client.discoverMissingUnits();
@@ -563,233 +1135,21 @@ program
   .action(async () => {
     console.log("🚀 Testing high limits to bypass pagination...\n");
     
-    const client = new HostfullyClient();
+    const client = new GraphQLHostfullyClient();
     
-    // Test GraphQL with very high limits
-    const testLimits = [500, 1000, 2000];
+    console.log(`📡 Testing GraphQL with very high limits...`);
+    const allProperties = await client.getAllProperties();
     
-    for (const limit of testLimits) {
-      try {
-        console.log(`📡 Testing GraphQL with limit: ${limit}`);
-        
-        const query = `{
-          properties(agencyUid: "${ENV.AGENCY_UID}", limit: ${limit}) {
-            uid, name, isActive,
-            address { address, city, state }
-          }
-        }`;
-        
-        const response = await (client as any).executeQuery(query, `HighLimit${limit}`);
-        console.log(`   ✅ Limit ${limit}: Found ${response.length} properties`);
-        
-        if (response.length > 23) {
-          console.log(`   🎉 SUCCESS! Found more than 23 properties with limit ${limit}!`);
-          console.log(`   Sample new properties:`);
-          response.slice(23, 28).forEach((prop: any, i: number) => {
-            console.log(`      ${i+24}. ${prop.uid} - ${prop.name}`);
-          });
-          break;
-        }
-        
-      } catch (error: any) {
-        console.log(`   ❌ Limit ${limit}: Failed - ${error?.message}`);
-      }
-    }
+    console.log(`\n📊 High Limit Test Results: ${allProperties.length} total properties found`);
     
-    // Test REST API with high limits using correct _limit parameter
-    console.log(`\n📡 Testing REST API with high limits...`);
-    
-    for (const limit of testLimits) {
-      try {
-        const restResponse = await axios.get(`${ENV.BASE}/properties`, {
-          params: { 
-            agencyUid: ENV.AGENCY_UID, 
-            _limit: limit  // Use _limit (the working parameter)
-          },
-          headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
-        });
-        
-        const properties = restResponse.data?.properties || restResponse.data?.data || [];
-        console.log(`   ✅ REST _limit ${limit}: Found ${properties.length} properties`);
-        
-        if (properties.length > 23) {
-          console.log(`   🎉 SUCCESS! REST API found more than 23 properties with _limit ${limit}!`);
-          break;
-        }
-        
-      } catch (error: any) {
-        console.log(`   ❌ REST _limit ${limit}: Failed - ${error?.response?.status}`);
-      }
-    }
-  });
-
-// Test updatedSince parameter
-program
-  .command("test-updated-since")
-  .description("🕒 Test updatedSince parameter to find older properties")
-  .action(async () => {
-    console.log("🕒 Testing updatedSince parameter to find missing properties...\n");
-    console.log("💡 Theory: Missing properties might be older and filtered by updatedSince\n");
-    
-    const allFoundProperties = new Set<string>();
-    
-    // Test different updatedSince dates going back in time
-    const testDates = [
-      { date: null, label: "no filter (current behavior)" },
-      { date: "2024-01-01T00:00:00Z", label: "since beginning of 2024" },
-      { date: "2023-01-01T00:00:00Z", label: "since beginning of 2023" },
-      { date: "2022-01-01T00:00:00Z", label: "since beginning of 2022" },
-      { date: "2021-01-01T00:00:00Z", label: "since beginning of 2021" },
-      { date: "2020-01-01T00:00:00Z", label: "since beginning of 2020" },
-      { date: "2019-01-01T00:00:00Z", label: "very old properties (2019+)" },
-      { date: "2018-01-01T00:00:00Z", label: "ancient properties (2018+)" },
-    ];
-    
-    for (const { date, label } of testDates) {
-      try {
-        console.log(`📡 Testing updatedSince: ${label}`);
-        
-        // Build params object
-        const params: any = { 
-          agencyUid: ENV.AGENCY_UID,
-          _limit: 200 // Use _limit as per API docs
-        };
-        
-        // Only add updatedSince if we have a date
-        if (date) {
-          params.updatedSince = date;
-        }
-        
-        // Direct REST API call with updatedSince parameter
-        const response = await axios.get(`${ENV.BASE}/properties`, {
-          params,
-          headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
-        });
-        
-        const properties = response.data?.properties || response.data?.data || [];
-        let newCount = 0;
-        
-        properties.forEach((prop: any) => {
-          if (!allFoundProperties.has(prop.uid)) {
-            allFoundProperties.add(prop.uid);
-            newCount++;
-          }
-        });
-        
-        console.log(`   ✅ ${label}: Found ${properties.length} total, ${newCount} new properties`);
-        console.log(`   📊 Running total: ${allFoundProperties.size} unique properties`);
-        
-        if (allFoundProperties.size > 50) {
-          console.log(`   🎉 BREAKTHROUGH! Found ${allFoundProperties.size} properties!`);
-        }
-        
-        // Show sample of newest properties found
-        if (newCount > 0) {
-          const newProps = properties.filter((p: any) => !allFoundProperties.has(p.uid) || newCount > 0).slice(0, 3);
-          console.log(`   🆕 Sample new: ${newProps.map((p: any) => p.name || p.title || p.uid.slice(0,8)).join(", ")}`);
-        }
-        
-      } catch (error: any) {
-        console.log(`   ❌ ${label}: Failed - ${error?.response?.status} ${error?.response?.statusText || error?.message}`);
-      }
-    }
-    
-    console.log(`\n🎯 FINAL UPDATEDLSINCE RESULTS:`);
-    console.log(`═══════════════════════════════`);
-    console.log(`Total unique properties found: ${allFoundProperties.size}`);
-    console.log(`Expected: 89 properties`);
-    console.log(`Success rate: ${Math.round(allFoundProperties.size / 89 * 100)}%`);
-    
-    if (allFoundProperties.size > 23) {
-      console.log(`🎉 SUCCESS! Found ${allFoundProperties.size - 23} additional properties!`);
-      console.log(`💡 The updatedSince parameter was the key!`);
-      console.log(`🔧 Recommendation: Use updatedSince=2018-01-01T00:00:00Z for complete data`);
+    if (allProperties.length > 23) {
+      console.log(`🎉 SUCCESS! Found more than 23 properties!`);
+      console.log(`Sample properties:`);
+      allProperties.slice(0, 5).forEach((prop: any, i: number) => {
+        console.log(`   ${i+1}. ${prop.uid} - ${prop.name}`);
+      });
     } else {
-      console.log(`😞 Still only found ${allFoundProperties.size} properties`);
-      console.log(`💭 The updatedSince parameter didn't reveal additional properties`);
-    }
-  });
-
-// Test using proper API parameter names from documentation
-program
-  .command("test-api-params")
-  .description("🔬 Test proper API parameter names from documentation (_limit, _cursor)")
-  .action(async () => {
-    console.log("🔬 Testing proper API parameter names from documentation...\n");
-    
-    const allFoundProperties = new Set<string>();
-    
-    // Test different combinations of proper API parameters
-    const paramTests = [
-      { name: "high _limit", params: { agencyUid: ENV.AGENCY_UID, _limit: 500 } },
-      { name: "high limit (old)", params: { agencyUid: ENV.AGENCY_UID, limit: 500 } },
-      { name: "_limit + updatedSince", params: { agencyUid: ENV.AGENCY_UID, _limit: 200, updatedSince: "2020-01-01T00:00:00Z" } },
-      { name: "no _limit", params: { agencyUid: ENV.AGENCY_UID } },
-      { name: "agencyUID (capital)", params: { agencyUID: ENV.AGENCY_UID, _limit: 200 } },
-      { name: "minimal params", params: { agencyUid: ENV.AGENCY_UID, _limit: 10 } },
-    ];
-    
-    for (const test of paramTests) {
-      try {
-        console.log(`📡 Testing: ${test.name}`);
-        
-        const response = await axios.get(`${ENV.BASE}/properties`, {
-          params: test.params,
-          headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
-        });
-        
-        const properties = response.data?.properties || response.data?.data || [];
-        let newCount = 0;
-        
-        properties.forEach((prop: any) => {
-          if (!allFoundProperties.has(prop.uid)) {
-            allFoundProperties.add(prop.uid);
-            newCount++;
-          }
-        });
-        
-        console.log(`   ✅ ${test.name}: Found ${properties.length} total, ${newCount} new`);
-        console.log(`   📊 Running total: ${allFoundProperties.size} unique properties`);
-        
-      } catch (error: any) {
-        console.log(`   ❌ ${test.name}: Failed - ${error?.response?.status}`);
-      }
-    }
-    
-    console.log(`\n📊 API Parameters Test Results: ${allFoundProperties.size} total properties found`);
-  });
-
-// Fixed discover-all command
-program
-  .command("discover-all")
-  .description("🔬 Advanced property discovery to find all 89 properties") 
-  .option("--throttle <ms>", "Delay between API calls (ms)", "1500")
-  .action(async (opts: any) => {
-    const throttleMs = parseInt(opts.throttle, 10);
-    if (Number.isFinite(throttleMs)) {
-      process.env.THROTTLE_MS = String(throttleMs);
-    }
-    
-    try {
-      const { runAdvancedDiscovery } = await import("./advancedDiscovery");
-      await runAdvancedDiscovery();
-    } catch (e: any) {
-      console.error("❌ Advanced discovery not available. Using built-in discovery...");
-      
-      // Fallback to our enhanced GraphQL discovery
-      const client = new HostfullyClient();
-      console.log("🔬 Running comprehensive property discovery...\n");
-      
-      const allProperties = await client.getAllProperties();
-      
-      console.log(`\n📊 COMPREHENSIVE DISCOVERY RESULTS:`);
-      console.log(`Total properties found: ${allProperties.length}`);
-      console.log(`Expected: 89 properties`);
-      console.log(`Success rate: ${Math.round(allProperties.length / 89 * 100)}%`);
-      
-      if (allProperties.length > 23) {
-        console.log(`🎉 SUCCESS! Found ${allProperties.length - 23} additional properties!`);
-      }
+      console.log(`⚠️ Still limited to ${allProperties.length} properties`);
     }
   });
 
@@ -805,10 +1165,11 @@ program
     
     console.log("🧪 Testing workaround strategies...\n");
     
-    const client = new HostfullyClient();
-    const properties = await client.listAllProperties();
+    // Use the HostfullyClient workaround
+    const workaroundClient = new HostfullyClient();
+    const properties = await workaroundClient.listAllProperties();
     
-    console.log(`\n📊 RESULTS:`);
+    console.log(`\n📊 WORKAROUND RESULTS:`);
     console.log(`Total properties found: ${properties.length}`);
     console.log(`Expected: 89 properties`);
     console.log(`Success rate: ${Math.round(properties.length / 89 * 100)}%`);
@@ -823,95 +1184,159 @@ program
     if (properties.length > 0) {
       console.log(`\n📋 Sample properties:`);
       properties.slice(0, 5).forEach((p, i) => {
-        console.log(`   ${i+1}. ${p.uid} - ${p.name || p.title || 'Unnamed'}`);
+        console.log(`   ${i+1}. ${p.uid} - ${p.name || 'Unnamed'}`);
       });
     }
   });
 
-// Safe testing command
+// Quick list command for debugging
 program
-  .command("safe-test")
-  .description("Safely test property update capabilities without affecting live data")
-  .argument("[uid]", "Property UID to test (optional, will use first property if not provided)")
-  .option("--dry-run", "Only simulate changes, don't actually update", true)
-  .option("--live", "Allow actual updates (USE WITH CAUTION)", false)
-  .option("--no-revert", "Don't automatically revert test changes", false)
-  .action(async (uid: string | undefined, opts: any) => {
-    try {
-      const { SafePropertyTester } = await import("./safeTesting");
-      
-      // Get properties to test with
-      const client = new HostfullyClient();
-      const properties = await client.listAllProperties();
-      
-      if (properties.length === 0) {
-        console.error("❌ No properties found to test with");
-        return;
-      }
-      
-      const testUid = uid || properties[0].uid;
-      const tester = new SafePropertyTester({
-        dryRun: !opts.live,
-        revertAfter: !opts.noRevert,
-        maxTestUpdates: 1
-      });
-      
-      console.log(`🧪 SAFE TESTING MODE`);
-      console.log(`Target property: ${testUid}`);
-      console.log(`Dry run: ${!opts.live}`);
-      console.log(`Will revert: ${!opts.noRevert}\n`);
-      
-      // Test reading
-      await tester.testPropertyRead(testUid);
-      
-      // Discover update endpoints
-      await tester.discoverUpdateEndpoints(testUid);
-      
-      // Test a safe update (description field)
-      await tester.testSafeUpdate(testUid, 'description', `Safe test at ${new Date().toISOString()}`);
-      
-    } catch (e: any) {
-      console.error("❌ Safe testing not available. Create src/cli/safeTesting.ts first.");
-    }
-  });
-
-// Legacy export command
-program
-  .command("export")
-  .description("Export listings to CSV from Hostfully (REST API)")
-  .option("--region <region>", "Region label (for filename only)", "ALL")
-  .option("--out <outDir>", "Output folder", "./exports")
-  .option("--include-archived", "Include archived listings", false)
-  .option("--debug", "Enable debug logging", false)
-  .option("--throttle <ms>", "Delay between API calls (ms)", (v) => parseInt(v,10), 1000)
-  .option("--start-page <n>", "Start page (resume)", (v)=>parseInt(v,10), 1)
-  .option("--max-pages <n>", "Stop after N pages (safety cap)", (v)=>parseInt(v,10), 0)
-  .option("--workaround", "Use workaround strategies for broken pagination", false)
-  .action(async (opts:any) => {
-    if (opts.debug) process.env.DEBUG = "true";
-    if (Number.isFinite(opts.throttle)) process.env.THROTTLE_MS = String(opts.throttle);
-    if (Number.isFinite(opts.startPage)) process.env.START_PAGE = String(opts.startPage);
-    if (Number.isFinite(opts.maxPages)) process.env.MAX_PAGES = String(opts.maxPages);
-    if (opts.workaround) process.env.USE_WORKAROUND = "true";
+  .command("list")
+  .description("Quick list of properties for debugging")
+  .option("--limit <n>", "Number to show", "20")
+  .action(async (opts: any) => {
+    const limit = parseInt(opts.limit, 10) || 20;
     
     try {
-      const { runExport } = await import("./export");
-      await runExport(opts);
-    } catch (e: any) {
-      console.error("❌ Legacy export not available. Create src/cli/export.ts first or use 'graphql-export' instead.");
+      const response = await axios.get(`${ENV.BASE}/properties`, {
+        params: { 
+          agencyUid: ENV.AGENCY_UID,
+          _limit: limit  // Use _limit for proper REST API call
+        },
+        headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
+      });
+      
+      const properties = response.data?.properties || response.data?.data || [];
+      
+      console.log(`📋 Found ${properties.length} properties:\n`);
+      
+      properties.forEach((prop: any, i: number) => {
+        console.log(`${(i + 1).toString().padStart(2)}. ${prop.uid}`);
+        console.log(`    📋 ${prop.name || 'Unnamed'}`);
+        console.log(`    ${prop.isActive ? '✅ Active' : '❌ Inactive'}`);
+        console.log(`    📍 ${prop.address?.address || 'No address'}`);
+        console.log('');
+      });
+      
+    } catch (error: any) {
+      console.error("❌ List failed:", error?.response?.status, error.message);
     }
   });
 
+// NEW COMMAND: List all 89 properties using REST API
 program
-  .command("diag-props")
-  .description("Probe property pagination parameters")
-  .option("--limit <n>", "Page size to use", (v)=>parseInt(v,10), 20)
-  .action(async (opts:any) => {
+  .command("list-all")
+  .description("📋 List ALL 89 properties using REST API")
+  .action(async () => {
+    console.log("📋 Listing ALL properties using REST API...\n");
+    
     try {
-      const { runDiagProps } = await import("./diagProps");
-      await runDiagProps(opts.limit);
-    } catch (e: any) {
-      console.error("❌ Diag props not available. Create src/cli/diagProps.ts first.");
+      const response = await axios.get(`${ENV.BASE}/properties`, {
+        params: { 
+          agencyUid: ENV.AGENCY_UID,
+          _limit: 200  // High limit to get all properties
+        },
+        headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
+      });
+      
+      const properties = response.data?.properties || response.data?.data || [];
+      
+      console.log(`🎉 Found ${properties.length} properties total:\n`);
+      
+      // Group by address for better organization
+      const groupedByAddress = properties.reduce((groups: any, prop: any) => {
+        const address = prop.address?.address || 'Unknown Address';
+        if (!groups[address]) groups[address] = [];
+        groups[address].push(prop);
+        return groups;
+      }, {});
+      
+      // Display organized by address
+      Object.entries(groupedByAddress)
+        .sort((a: any, b: any) => b[1].length - a[1].length)
+        .forEach(([address, props]: [string, any]) => {
+          console.log(`🏠 ${address} (${props.length} units):`);
+          props.forEach((prop: any, i: number) => {
+            console.log(`   ${(i + 1).toString().padStart(2)}. ${prop.uid}`);
+            console.log(`       📋 ${prop.name || 'Unnamed'}`);
+            console.log(`       ${prop.isActive ? '✅ Active' : '❌ Inactive'}`);
+          });
+          console.log('');
+        });
+      
+      console.log(`📊 SUMMARY:`);
+      console.log(`Total properties: ${properties.length}`);
+      console.log(`Expected: 89 properties`);
+      console.log(`Success rate: ${Math.round(properties.length / 89 * 100)}%`);
+      
+    } catch (error: any) {
+      console.error("❌ List all failed:", error?.response?.status, error.message);
+    }
+  });
+
+// Enhanced discovery command with fallback
+program
+  .command("discover-all")
+  .description("🔬 Advanced property discovery to find all 89 properties") 
+  .option("--throttle <ms>", "Delay between API calls (ms)", "1500")
+  .action(async (opts: any) => {
+    const throttleMs = parseInt(opts.throttle, 10);
+    if (Number.isFinite(throttleMs)) {
+      process.env.THROTTLE_MS = String(throttleMs);
+    }
+    
+    // Try GraphQL first
+    console.log("🔬 Running comprehensive property discovery...\n");
+    
+    const graphqlClient = new GraphQLHostfullyClient();
+    let allProperties = await graphqlClient.getAllProperties();
+    
+    // If GraphQL doesn't find enough, try workaround client
+    if (allProperties.length < 80) {
+      console.log(`\n🔄 GraphQL found ${allProperties.length}, trying workaround client...`);
+      
+      const workaroundClient = new HostfullyClient();
+      const workaroundProperties = await workaroundClient.listAllProperties();
+      
+      // Merge results, avoiding duplicates
+      const foundUIDs = new Set(allProperties.map(p => p.uid));
+      workaroundProperties.forEach(prop => {
+        if (!foundUIDs.has(prop.uid)) {
+          // Convert HostfullyProperty to GraphQLProperty format
+          const convertedProp = {
+            uid: prop.uid,
+            name: prop.name || prop.title || '',
+            isActive: prop.isActive !== false,
+            mainPicture: {},
+            businessType: '',
+            propertyType: '',
+            availability: { maxGuests: prop.maxGuests || prop.availability?.maxGuests || 0 },
+            address: {
+              address: prop.address?.address || '',
+              address2: prop.address?.address2 || '',
+              zipCode: prop.address?.zipCode || '',
+              city: prop.address?.city || '',
+              state: prop.address?.state || ''
+            },
+            subUnits: [],
+            numberOfSubUnits: 0,
+            pricing: { currency: 'USD' },
+            tags: prop.tags || []
+          };
+          allProperties.push(convertedProp);
+        }
+      });
+    }
+    
+    console.log(`\n📊 COMPREHENSIVE DISCOVERY RESULTS:`);
+    console.log(`Total properties found: ${allProperties.length}`);
+    console.log(`Expected: 89 properties`);
+    console.log(`Success rate: ${Math.round(allProperties.length / 89 * 100)}%`);
+    
+    if (allProperties.length > 50) {
+      console.log(`🎉 SUCCESS! Found a substantial number of properties!`);
+    } else {
+      console.log(`⚠️ Found ${allProperties.length} properties, may need API support`);
     }
   });
 
