@@ -6,10 +6,17 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import axios from "axios";
+import { stringify } from "csv-stringify/sync";
 import { HostfullyClient } from "../api/hostfullyClient";
 import { ENV } from "../utils/env";
 
 const app = express();
+
+/* ----------------------------------------------------------
+   Proxy / networking
+---------------------------------------------------------- */
+// If you run behind cloudflared (or any local reverse proxy), trust loopback proxies.
+app.set("trust proxy", "loopback"); // trusts 127.0.0.1 and ::1
 
 const PORT = Number(process.env.PORT || ENV.PORT || 3000);
 const NODE_ENV = (process.env.NODE_ENV || ENV.NODE_ENV || "development") as
@@ -17,7 +24,9 @@ const NODE_ENV = (process.env.NODE_ENV || ENV.NODE_ENV || "development") as
   | "production"
   | "staging";
 
-/* ---------------- Security ---------------- */
+/* ----------------------------------------------------------
+   Security
+---------------------------------------------------------- */
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -25,7 +34,8 @@ app.use(
         defaultSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        scriptSrc: ["'self'"], // we load /app.js only
+        // no inline scripts — we load /app.js as an external file
+        scriptSrc: ["'self'"],
         imgSrc: ["'self'", "data:", "https:"],
         connectSrc: ["'self'"], // API calls are same-origin
       },
@@ -35,7 +45,9 @@ app.use(
   })
 );
 
-/* ---------------- CORS ---------------- */
+/* ----------------------------------------------------------
+   CORS
+---------------------------------------------------------- */
 const allowedOrigins =
   ENV.ALLOWED_ORIGINS?.length
     ? ENV.ALLOWED_ORIGINS
@@ -43,13 +55,15 @@ const allowedOrigins =
 
 app.use(
   cors({
-    origin: allowedOrigins, // same-origin access won’t require CORS headers
+    origin: allowedOrigins,
     credentials: true,
     optionsSuccessStatus: 200,
   })
 );
 
-/* ---------------- Rate limit ---------------- */
+/* ----------------------------------------------------------
+   Rate limit (API only)
+---------------------------------------------------------- */
 app.use(
   "/api/",
   rateLimit({
@@ -66,14 +80,20 @@ app.use(
   })
 );
 
-/* ---------------- Parsers ---------------- */
+/* ----------------------------------------------------------
+   Parsers
+---------------------------------------------------------- */
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-/* ---------------- API clients ---------------- */
+/* ----------------------------------------------------------
+   API client
+---------------------------------------------------------- */
 const hostfullyClient = new HostfullyClient();
 
-/* ---------------- Helpers ---------------- */
+/* ----------------------------------------------------------
+   Helpers
+---------------------------------------------------------- */
 function sanitizeProperty(property: any) {
   return {
     uid: property.uid,
@@ -86,7 +106,7 @@ function sanitizeProperty(property: any) {
     availability: {
       maxGuests: property.availability?.maxGuests || property.maxGuests || 0,
     },
-    // List view placeholders. App fetches /descriptions per property on demand.
+    // placeholders for list view (details fetched on demand)
     descriptions: {
       public_name: "",
       short_description: "",
@@ -107,10 +127,114 @@ function sanitizeProperty(property: any) {
     },
   };
 }
-
 const sanitizePropertyList = (properties: any[]) => properties.map(sanitizeProperty);
 
-/* ---------------- PUBLIC API ---------------- */
+type Descriptions = {
+  public_name: string;
+  short_description: string;
+  long_description: string;
+  neighbourhood: string;
+  space: string;
+  access: string;
+  transit: string;
+};
+type DescBundle = { descriptions: Descriptions; characterCounts: Record<string, number> };
+
+/** Try REST /property-descriptions */
+async function fetchDescriptionsFromREST(propertyUid: string): Promise<Descriptions> {
+  const resp = await axios.get(`${ENV.BASE}/property-descriptions`, {
+    params: { propertyUid, agencyUid: ENV.AGENCY_UID },
+    headers: { "X-HOSTFULLY-APIKEY": ENV.APIKEY },
+    timeout: 15000,
+    validateStatus: () => true,
+  });
+
+  if (resp.status !== 200) {
+    const msg = resp.data?.apiErrorMessage || resp.statusText || "Upstream error";
+    throw new Error(`HTTP ${resp.status}: ${msg}`);
+  }
+
+  const arr =
+    resp.data?.propertyDescriptions ??
+    resp.data?.data ??
+    (Array.isArray(resp.data) ? resp.data : []);
+  const d: any = Array.isArray(arr) && arr.length > 0 ? arr[0] : {};
+
+  return {
+    public_name: d.name || "",
+    short_description: d.shortSummary || "",
+    long_description: d.summary || "",
+    neighbourhood: d.neighbourhood || "",
+    space: d.space || "",
+    access: d.access || "",
+    transit: d.transit || "",
+  };
+}
+
+/** Fallback: pull description-like fields from the property detail */
+async function fetchDescriptionsFromProperty(propertyUid: string): Promise<Descriptions> {
+  const prop = await hostfullyClient.getPropertyByUid(propertyUid).catch(() => null);
+  if (!prop) {
+    return {
+      public_name: "",
+      short_description: "",
+      long_description: "",
+      neighbourhood: "",
+      space: "",
+      access: "",
+      transit: "",
+    };
+  }
+  return {
+    public_name: prop.description_name || prop.main_description_name || "",
+    short_description:
+      prop.description_shortSummary || prop.main_description_shortSummary || "",
+    long_description:
+      prop.description_longDescription || prop.main_description_longDescription || "",
+    neighbourhood:
+      prop.description_neighbourhood || prop.main_description_neighbourhood || "",
+    space: prop.description_space || prop.main_description_space || "",
+    access: prop.description_access || prop.main_description_access || "",
+    transit: prop.description_transit || prop.main_description_transit || "",
+  };
+}
+
+function withCounts(descriptions: Descriptions): DescBundle {
+  const d = Object.fromEntries(
+    Object.entries(descriptions).map(([k, v]) => [k, String(v || "")])
+  ) as Descriptions;
+  const characterCounts = Object.fromEntries(
+    Object.entries(d).map(([k, v]) => [k, v.length])
+  ) as Record<string, number>;
+  return { descriptions: d, characterCounts };
+}
+
+/** Merge REST + fallback (REST wins when present) */
+async function fetchDescriptionsMerged(uid: string): Promise<DescBundle> {
+  let fromRest: Descriptions | null = null;
+  try {
+    fromRest = await fetchDescriptionsFromREST(uid);
+  } catch (e) {
+    // swallow; we'll rely on fallback
+  }
+  const fromProp = await fetchDescriptionsFromProperty(uid);
+
+  const merged: Descriptions = {
+    public_name: fromRest?.public_name ?? fromProp.public_name,
+    short_description: fromRest?.short_description ?? fromProp.short_description,
+    long_description: fromRest?.long_description ?? fromProp.long_description,
+    neighbourhood: fromRest?.neighbourhood ?? fromProp.neighbourhood,
+    space: fromRest?.space ?? fromProp.space,
+    access: fromRest?.access ?? fromProp.access,
+    transit: fromRest?.transit ?? fromProp.transit,
+  };
+
+  return withCounts(merged);
+}
+
+/* ----------------------------------------------------------
+   PUBLIC API
+---------------------------------------------------------- */
 
 // List properties (sanitized)
 app.get("/api/properties", async (_req, res) => {
@@ -157,70 +281,111 @@ app.get("/api/properties/:uid", async (req, res) => {
   }
 });
 
-// Descriptions for a property (fetch from Hostfully REST, map fields)
+// Per-property descriptions (REST + fallback merged)
 app.get("/api/properties/:uid/descriptions", async (req, res) => {
   const { uid } = req.params;
   try {
-    const resp = await axios.get(`${ENV.BASE}/property-descriptions`, {
-      params: { propertyUid: uid, agencyUid: ENV.AGENCY_UID },
-      headers: { "X-HOSTFULLY-APIKEY": ENV.APIKEY },
-      timeout: 15000,
-      validateStatus: () => true, // don’t throw, we handle below
-    });
-
-    if (resp.status !== 200) {
-      console.error(
-        `Descriptions ${uid} -> ${resp.status}`,
-        resp.data?.apiErrorMessage || resp.statusText
-      );
-      return res.status(resp.status).json({
-        success: false,
-        error: "Failed to fetch descriptions",
-        message: resp.data?.apiErrorMessage || resp.statusText || "Upstream error",
-      });
-    }
-
-    const arr =
-      resp.data?.propertyDescriptions ??
-      resp.data?.data ??
-      (Array.isArray(resp.data) ? resp.data : []);
-
-    const d: any = Array.isArray(arr) && arr.length > 0 ? arr[0] : {};
-
-    const descriptions = {
-      public_name: d.name || "",
-      short_description: d.shortSummary || "",
-      long_description: d.summary || "",
-      neighbourhood: d.neighbourhood || "",
-      space: d.space || "",
-      access: d.access || "",
-      transit: d.transit || "",
-    };
-
-    const characterCounts = Object.fromEntries(
-      Object.entries(descriptions).map(([k, v]) => [k, String(v || "").length])
-    );
-
-    res.json({
-      success: true,
-      descriptions,
-      characterCounts,
-      timestamp: new Date().toISOString(),
-    });
+    const bundle = await fetchDescriptionsMerged(uid);
+    res.json({ success: true, ...bundle, uid, timestamp: new Date().toISOString() });
   } catch (err: any) {
-    const status = err?.response?.status || 500;
-    const msg =
-      err?.response?.data?.apiErrorMessage ||
-      err?.response?.data?.message ||
-      err?.message ||
-      "Unknown error";
-    console.error(`Descriptions error for ${uid}:`, status, msg);
-    res.status(status).json({
+    const msg = err?.message || "Unknown error";
+    console.error(`Descriptions error for ${uid}:`, msg);
+    res.status(502).json({
       success: false,
       error: "Failed to fetch descriptions",
       message: msg,
     });
   }
+});
+
+// CSV export (all properties + all description fields)
+// Main route:
+app.get("/api/export/properties.csv", async (req, res) => {
+  try {
+    const properties = await hostfullyClient.listAllProperties();
+    const sanitized = sanitizePropertyList(properties);
+
+    // Simple worker pool (limit concurrency; default 5)
+    const limit = Math.max(1, Number(req.query.concurrency) || 5);
+    let index = 0;
+    const results: Array<{ p: ReturnType<typeof sanitizeProperty>; d: Descriptions }> =
+      new Array(sanitized.length);
+
+    async function worker() {
+      while (index < sanitized.length) {
+        const i = index++;
+        const p = sanitized[i];
+        try {
+          const bundle = await fetchDescriptionsMerged(p.uid);
+          results[i] = { p, d: bundle.descriptions };
+        } catch (e: any) {
+          console.warn(`Desc fetch failed for ${p.uid}: ${e?.message}`);
+          results[i] = {
+            p,
+            d: {
+              public_name: "",
+              short_description: "",
+              long_description: "",
+              neighbourhood: "",
+              space: "",
+              access: "",
+              transit: "",
+            },
+          };
+        }
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(limit, sanitized.length) }, worker));
+
+    const rows = results.map(({ p, d }) => ({
+      uid: p.uid,
+      name: p.name,
+      status: p.isActive ? "Active" : "Inactive",
+      city: p.address.city,
+      state: p.address.state,
+      maxGuests: p.availability.maxGuests,
+      public_name: d.public_name,
+      short_description: d.short_description,
+      long_description: d.long_description,
+      neighbourhood: d.neighbourhood,
+      space: d.space,
+      access: d.access,
+      transit: d.transit,
+    }));
+
+    const columns = [
+      "uid",
+      "name",
+      "status",
+      "city",
+      "state",
+      "maxGuests",
+      "public_name",
+      "short_description",
+      "long_description",
+      "neighbourhood",
+      "space",
+      "access",
+      "transit",
+    ];
+
+    const csv = stringify(rows, { header: true, columns });
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="hostfully_properties.csv"');
+    res.status(200).send(csv);
+  } catch (err: any) {
+    console.error("CSV export error:", err?.message);
+    res.status(500).json({ success: false, error: "Failed to generate CSV", message: err?.message });
+  }
+});
+// Alias for convenience:
+app.get("/api/properties.csv", (req, res) => {
+  (app._router as any).handle(
+    { ...req, url: "/api/export/properties.csv", originalUrl: "/api/export/properties.csv" },
+    res,
+    () => {}
+  );
 });
 
 // Health check
@@ -233,20 +398,27 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-/* ---------------- Static assets ---------------- */
+/* ----------------------------------------------------------
+   Static assets
+---------------------------------------------------------- */
 const publicCandidates = [
-  path.join(__dirname, "public"),                // when built to dist
+  path.join(__dirname, "public"), // when built to dist
   path.resolve(process.cwd(), "src/web/public"), // when running ts-node/tsx
 ];
-
 const publicDir =
   publicCandidates.find((p) => {
-    try { return fs.existsSync(p); } catch { return false; }
+    try {
+      return fs.existsSync(p);
+    } catch {
+      return false;
+    }
   }) || publicCandidates[0];
 
 app.use(express.static(publicDir));
 
-/* ---------------- HTML ---------------- */
+/* ----------------------------------------------------------
+   HTML shell (no inline JS—loads /app.js)
+---------------------------------------------------------- */
 app.get("/", (_req, res) => {
   res.type("html").send(`<!DOCTYPE html>
 <html lang="en">
@@ -263,8 +435,8 @@ app.get("/", (_req, res) => {
     .header { text-align: center; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 3px solid #007bff; }
     .header h1 { margin:0; font-size: 2.4rem; color:#333; }
     .subtitle { color:#666; margin-top:10px; }
-    .controls { display:flex; justify-content:center; gap:20px; margin-bottom:24px; flex-wrap:wrap; }
-    .btn { background:#007bff; color:#fff; border:none; padding:12px 24px; border-radius:6px; cursor:pointer; font-size:16px; }
+    .controls { display:flex; justify-content:center; gap:12px; margin-bottom:24px; flex-wrap:wrap; }
+    .btn { background:#007bff; color:#fff; border:none; padding:12px 16px; border-radius:6px; cursor:pointer; font-size:16px; }
     .btn:hover:not(:disabled){ background:#0056b3; }
     .btn:disabled{ background:#ccc; cursor:not-allowed; }
     .btn.secondary{ background:#6c757d; }
@@ -283,7 +455,7 @@ app.get("/", (_req, res) => {
     .char-count{ color:#6c757d; font-size:.8rem; margin-top:4px; }
     .loading{ text-align:center; color:#666; font-size:1.1rem; padding:32px; }
     .error{ background:#f8d7da; color:#721c24; padding:12px; border-radius:6px; margin:16px 0; }
-    .status-badge{ padding:4px 12px; border-radius:12px; font-size:.8rem; font-weight:700; margin-left:10px; }
+    .status-badge{ padding:4px 12px; border-radius:12px; font-size:.8rem; font-weight:700; }
     .status-active{ background:#d4edda; color:#155724; }
     .status-inactive{ background:#f8d7da; color:#721c24; }
   </style>
@@ -304,6 +476,7 @@ app.get("/", (_req, res) => {
         <input type="number" id="jumpInput" min="1" placeholder="1" disabled />
         <button id="jumpBtn" class="btn secondary" disabled>Go</button>
       </div>
+      <button id="downloadBtn" class="btn">⬇️ Download CSV</button>
     </div>
 
     <div id="propertyDisplay" class="property-display" style="display:none;">
@@ -324,7 +497,9 @@ app.get("/", (_req, res) => {
 </html>`);
 });
 
-/* ---------------- Errors ---------------- */
+/* ----------------------------------------------------------
+   Errors
+---------------------------------------------------------- */
 app.use(
   (
     err: any,
@@ -345,11 +520,10 @@ app.use("*", (req, res) => {
   res.status(404).json({ success: false, error: "Not found", path: req.originalUrl });
 });
 
-/* ---------------- Start ---------------- */
-// Use IPv6-any ('::') so Cloudflared (which prefers [::1]) can reach you;
-// it also accepts IPv4 on most systems. If you prefer, omit the host arg.
-const HOST = process.env.HOST || "::";
-
+/* ----------------------------------------------------------
+   Start
+---------------------------------------------------------- */
+const HOST = process.env.HOST || "::"; // IPv6-any (works with cloudflared), also accepts IPv4 on most systems
 app.listen(PORT, HOST, () => {
   console.log(`🚀 Hostfully browser: http://localhost:${PORT}`);
   console.log(`📊 Environment: ${NODE_ENV}`);
