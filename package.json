@@ -1,27 +1,73 @@
 {
-  "name": "hostify-csv",
+  "name": "hostfully-cli-toolkit",
   "version": "1.0.0",
-  "description": "CLI tool for working with Hostfully CSV data",
-  "main": "index.js",
+  "private": true,
+  "description": "Secure CLI and web interface for Hostfully property management",
+  "main": "dist/cli/index.js",
   "scripts": {
-    "start": "ts-node src/cli/index.ts",
-    "export": "ts-node src/cli/export.ts"
+    "dev": "npm run dev:ipv4",
+    "dev:ipv4": "cross-env HOST=127.0.0.1 NODE_ENV=development tsx src/web/server.ts",
+
+    "dev:share": "concurrently -k --success=none -n server,tunnel -c blue,magenta \"npm run dev:ipv4\" \"npm run tunnel:wait\"",
+    "tunnel:wait": "cross-env-shell \"PORT=${PORT:-3000} wait-on -t 300000 http://127.0.0.1:$PORT/api/health && cloudflared tunnel --url http://127.0.0.1:$PORT\"",
+    "tunnel": "cross-env-shell \"PORT=${PORT:-3000} cloudflared tunnel --url http://127.0.0.1:$PORT\"",
+
+    "build": "tsc -p tsconfig.json",
+    "postbuild": "copyfiles -u 2 src/web/public/* dist/web/public",
+    "start": "cross-env NODE_ENV=production node dist/web/server.js",
+    "serve": "cross-env NODE_ENV=production node dist/web/server.js",
+    "build:watch": "tsc -w -p tsconfig.json",
+    "clean": "rm -rf dist",
+
+    "health": "curl -s http://127.0.0.1:${PORT:-3000}/api/health && echo",
+
+    "cli": "ts-node src/cli/index.ts",
+    "cli:export": "ts-node src/cli/export.ts",
+
+    "test": "jest",
+    "lint": "eslint src --ext .ts",
+    "security-check": "npm audit && npm run security:snyk",
+    "security:snyk": "snyk test",
+    "docker:build": "docker build -t hostfully-toolkit .",
+    "docker:run": "docker run -p 3000:3000 --env-file .env hostfully-toolkit"
   },
-  "keywords": [],
-  "author": "",
-  "license": "MIT",
   "dependencies": {
     "axios": "^1.11.0",
-    "commander": "^14.0.0",
+    "commander": "^11.1.0",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
     "csv-parse": "^6.1.0",
-    "csv-stringify": "^6.6.0",
-    "dotenv": "^17.2.1",
-    "pino": "^9.8.0",
-    "zod": "^4.0.17"
+    "csv-stringify": "^6.4.4",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.5.1",
+    "helmet": "^7.2.0",
+    "morgan": "^1.10.1"
   },
   "devDependencies": {
-    "@types/node": "^24.2.1",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.2"
+    "@types/compression": "^1.7.5",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.0",
+    "@types/morgan": "^1.9.9",
+    "@types/node": "^20.19.10",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "concurrently": "^9.0.1",
+    "copyfiles": "^2.4.1",
+    "cross-env": "^7.0.3",
+    "eslint": "^8.0.0",
+    "jest": "^29.5.0",
+    "nodemon": "^3.0.0",
+    "snyk": "^1.1200.0",
+    "ts-jest": "^29.1.0",
+    "ts-node": "^10.9.0",
+    "tsx": "^4.20.4",
+    "typescript": "^5.0.0",
+    "wait-on": "^7.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   }
 }

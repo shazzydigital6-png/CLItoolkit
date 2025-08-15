@@ -662,6 +662,225 @@ async function generateComprehensiveCSV(properties: any[], outputDir: string, pr
 // Initialize the CLI program
 const program = new Command();
 
+// ADD THIS FUNCTION anywhere before your program commands section in your existing index.ts:
+
+// NEW: Focused descriptions-only export function
+async function exportDescriptionsOnly(outputDir: string) {
+  console.log("📝 Exporting ONLY description data for all properties...\n");
+  
+  // Get all properties using optimized client
+  const workaroundClient = new HostfullyClient();
+  const allProperties = await workaroundClient.listAllProperties();
+
+  if (allProperties.length === 0) {
+    console.error("❌ No properties found! Check API credentials.");
+    return;
+  }
+
+  console.log(`📝 Fetching descriptions for ${allProperties.length} properties...`);
+  
+  // Simplified data structure for descriptions only
+  const descriptionsData: any[] = [];
+  
+  for (let i = 0; i < allProperties.length; i++) {
+    const property = allProperties[i];
+    
+    try {
+      console.log(`   📄 Fetching description ${i + 1}/${allProperties.length}: ${property.name || property.uid}`);
+      
+      const descResponse = await axios.get(`${ENV.BASE}/property-descriptions`, {
+        params: { 
+          propertyUid: property.uid,
+          agencyUid: ENV.AGENCY_UID
+        },
+        headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY },
+        timeout: 10000
+      });
+      
+      // Extract description data based on Hostfully interface screenshots
+      const descriptionsArray = descResponse.data?.propertyDescriptions || [];
+      
+      if (descriptionsArray && descriptionsArray.length > 0) {
+        const desc = descriptionsArray[0]; // Primary description
+        
+        // Create focused description record matching Hostfully fields from screenshots
+        const descriptionRecord = {
+          // Property identification
+          property_uid: property.uid,
+          property_name: property.name || property.title || '',
+          property_address: property.address?.address || '',
+          
+          // Description fields from Hostfully screenshots (exact field names)
+          public_name: desc.name || '',                    // "Public Name" field
+          short_description: desc.shortSummary || '',      // "Short Description" field  
+          long_description: desc.summary || '',            // "Long Description" field
+          notes: desc.notes || '',                         // "Notes" field
+          interaction: desc.interaction || '',             // "Interaction" field
+          neighbourhood: desc.neighbourhood || '',         // "Neighbourhood" field
+          access: desc.access || '',                       // "Access" field
+          space: desc.space || '',                         // "Space" field
+          transit: desc.transit || '',                     // "Transit" field
+          house_manual: desc.houseManual || '',           // "House Manual" field
+          locale: desc.locale || 'en_US',                 // Language locale
+          
+          // Character counts for editing reference
+          public_name_chars: (desc.name || '').length,
+          short_description_chars: (desc.shortSummary || '').length,
+          long_description_chars: (desc.summary || '').length,
+          notes_chars: (desc.notes || '').length,
+          interaction_chars: (desc.interaction || '').length,
+          neighbourhood_chars: (desc.neighbourhood || '').length,
+          access_chars: (desc.access || '').length,
+          space_chars: (desc.space || '').length,
+          transit_chars: (desc.transit || '').length,
+          house_manual_chars: (desc.houseManual || '').length,
+          
+          // Metadata
+          export_timestamp: new Date().toISOString(),
+          has_description: true
+        };
+        
+        descriptionsData.push(descriptionRecord);
+        console.log(`   ✅ Extracted descriptions for ${property.uid}`);
+        
+      } else {
+        // Property without descriptions
+        const emptyRecord = {
+          property_uid: property.uid,
+          property_name: property.name || property.title || '',
+          property_address: property.address?.address || '',
+          public_name: '',
+          short_description: '',
+          long_description: '',
+          notes: '',
+          interaction: '',
+          neighbourhood: '',
+          access: '',
+          space: '',
+          transit: '',
+          house_manual: '',
+          locale: 'en_US',
+          public_name_chars: 0,
+          short_description_chars: 0,
+          long_description_chars: 0,
+          notes_chars: 0,
+          interaction_chars: 0,
+          neighbourhood_chars: 0,
+          access_chars: 0,
+          space_chars: 0,
+          transit_chars: 0,
+          house_manual_chars: 0,
+          export_timestamp: new Date().toISOString(),
+          has_description: false
+        };
+        
+        descriptionsData.push(emptyRecord);
+        console.log(`   ⚠️ No descriptions found for ${property.uid}`);
+      }
+      
+      // Rate limiting
+      if (i < allProperties.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, ENV.THROTTLE_MS || 1000));
+      }
+      
+    } catch (error: any) {
+      console.log(`   ❌ Error fetching description for ${property.uid}: ${error?.response?.status}`);
+      
+      // Add error record
+      const errorRecord = {
+        property_uid: property.uid,
+        property_name: property.name || property.title || '',
+        property_address: property.address?.address || '',
+        public_name: '',
+        short_description: '',
+        long_description: '',
+        notes: '',
+        interaction: '',
+        neighbourhood: '',
+        access: '',
+        space: '',
+        transit: '',
+        house_manual: '',
+        locale: 'en_US',
+        public_name_chars: 0,
+        short_description_chars: 0,
+        long_description_chars: 0,
+        notes_chars: 0,
+        interaction_chars: 0,
+        neighbourhood_chars: 0,
+        access_chars: 0,
+        space_chars: 0,
+        transit_chars: 0,
+        house_manual_chars: 0,
+        export_timestamp: new Date().toISOString(),
+        has_description: false,
+        error: `API Error: ${error?.response?.status || 'Unknown'}`
+      };
+      
+      descriptionsData.push(errorRecord);
+    }
+  }
+  
+  // Generate descriptions-only CSV
+  fs.mkdirSync(outputDir, { recursive: true });
+  
+  const dateStr = new Date().toISOString().split('T')[0];
+  const timeStr = new Date().toISOString().split('T')[1].split('.')[0].replace(/:/g, '-');
+  const filename = `hostfully_descriptions_only_${dateStr}_${timeStr}.csv`;
+  const filepath = path.join(outputDir, filename);
+  
+  const csvContent = stringify(descriptionsData, { 
+    header: true,
+    quoted: true
+  });
+  
+  fs.writeFileSync(filepath, csvContent, "utf8");
+  
+  const fileSize = (fs.statSync(filepath).size / 1024 / 1024).toFixed(2);
+  const propertiesWithDescriptions = descriptionsData.filter(d => d.has_description).length;
+  
+  console.log(`\n🎉 DESCRIPTIONS EXPORT COMPLETE!`);
+  console.log(`═══════════════════════════════════════`);
+  console.log(`📁 File: ${filepath}`);
+  console.log(`📊 Total properties: ${descriptionsData.length}`);
+  console.log(`📝 Properties with descriptions: ${propertiesWithDescriptions}`);
+  console.log(`❌ Properties without descriptions: ${descriptionsData.length - propertiesWithDescriptions}`);
+  console.log(`💾 File size: ${fileSize} MB`);
+  
+  console.log(`\n📋 CSV Columns (matching Hostfully interface):`);
+  console.log(`   • property_uid, property_name, property_address`);
+  console.log(`   • public_name (Property title/Public Name)`);
+  console.log(`   • short_description (Short Description field)`);
+  console.log(`   • long_description (Long Description field)`);
+  console.log(`   • notes (Notes field)`);
+  console.log(`   • interaction (Interaction field)`);
+  console.log(`   • neighbourhood (Neighbourhood field)`);
+  console.log(`   • access (Access field)`);
+  console.log(`   • space (Space field)`);
+  console.log(`   • transit (Transit field)`);
+  console.log(`   • house_manual (House Manual field)`);
+  console.log(`   • *_chars (Character counts for each field)`);
+  
+  return descriptionsData;
+}
+
+// ADD THIS COMMAND to your existing program commands section:
+
+program
+  .command("export-descriptions-only")
+  .description("📝 Export ONLY description data for all properties")
+  .option("--output <dir>", "Output directory", "./exports")
+  .action(async (opts: any) => {
+    try {
+      await exportDescriptionsOnly(opts.output);
+    } catch (error: any) {
+      console.error("❌ Descriptions export failed:", error.message);
+      if (error?.response?.data) {
+        console.error("API Response:", error.response.data);
+      }
+    }
+  });
+
 program
   .name("hostfully-csv")
   .description("Export/Import listings as CSV")
