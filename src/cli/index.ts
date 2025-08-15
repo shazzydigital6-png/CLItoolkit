@@ -283,370 +283,215 @@ async function bulkUpdateFromGraphQLCSV(csvFile: string, backupDir: string) {
   console.log(`📁 Backup: ${backupPath}`);
 }
 
-// Enhanced REST API export focused on _limit parameter with descriptions
+// Enhanced description parsing function to extract all individual fields
+function parsePropertyDescriptions(property: any, descriptionsResponse: any): void {
+  console.log(`   🔍 Parsing descriptions for ${property.uid}...`);
+  
+  // Handle the API response structure
+  let descriptionsArray: any[] = [];
+  
+  if (Array.isArray(descriptionsResponse)) {
+    // Response is directly an array
+    descriptionsArray = descriptionsResponse;
+  } else if (descriptionsResponse?.propertyDescriptions && Array.isArray(descriptionsResponse.propertyDescriptions)) {
+    // Response has propertyDescriptions wrapper
+    descriptionsArray = descriptionsResponse.propertyDescriptions;
+  } else if (descriptionsResponse?.data?.propertyDescriptions && Array.isArray(descriptionsResponse.data.propertyDescriptions)) {
+    // Response has data.propertyDescriptions wrapper
+    descriptionsArray = descriptionsResponse.data.propertyDescriptions;
+  }
+  
+  console.log(`   📋 Found ${descriptionsArray.length} description(s)`);
+  
+  if (descriptionsArray.length > 0) {
+    // Store the raw descriptions for reference
+    property.rawDescriptions = descriptionsArray;
+    
+    // Process each description (usually just one, but could be multiple locales)
+    descriptionsArray.forEach((desc: any, index: number) => {
+      const prefix = index === 0 ? '' : `_${desc.locale || index}`;
+      
+      // Extract all individual description fields as separate columns
+      // These match the fields shown in your Hostfully interface screenshots
+      
+      // Basic info
+      property[`description${prefix}_name`] = desc.name || '';
+      property[`description${prefix}_locale`] = desc.locale || 'en_US';
+      
+      // Main description fields (as shown in your screenshots)
+      property[`description${prefix}_shortSummary`] = desc.shortSummary || '';
+      property[`description${prefix}_longDescription`] = desc.summary || ''; // "Long Description" in UI
+      property[`description${prefix}_notes`] = desc.notes || '';
+      property[`description${prefix}_interaction`] = desc.interaction || '';
+      property[`description${prefix}_neighbourhood`] = desc.neighbourhood || '';
+      property[`description${prefix}_space`] = desc.space || '';
+      property[`description${prefix}_access`] = desc.access || '';
+      property[`description${prefix}_transit`] = desc.transit || '';
+      property[`description${prefix}_houseManual`] = desc.houseManual || '';
+      
+      // Clean up the text fields (remove extra whitespace, line breaks)
+      const textFields = [
+        `description${prefix}_name`,
+        `description${prefix}_shortSummary`, 
+        `description${prefix}_longDescription`,
+        `description${prefix}_notes`,
+        `description${prefix}_interaction`,
+        `description${prefix}_neighbourhood`,
+        `description${prefix}_space`,
+        `description${prefix}_access`,
+        `description${prefix}_transit`,
+        `description${prefix}_houseManual`
+      ];
+      
+      textFields.forEach(field => {
+        if (property[field]) {
+          // Clean up the text: normalize whitespace, remove special characters that break CSV
+          property[field] = property[field]
+            .replace(/[\r\n\t]/g, ' ')  // Replace line breaks with spaces
+            .replace(/\s+/g, ' ')        // Collapse multiple spaces
+            .replace(/"/g, '""')         // Escape quotes for CSV
+            .trim();                     // Remove leading/trailing spaces
+        }
+      });
+      
+      console.log(`   ✅ Extracted description ${index + 1}: "${desc.name?.substring(0, 50)}..."`);
+    });
+    
+    // For convenience, also create "main" versions (from the first description)
+    const mainDesc = descriptionsArray[0];
+    property.main_description_name = mainDesc.name || '';
+    property.main_description_shortSummary = mainDesc.shortSummary || '';
+    property.main_description_longDescription = mainDesc.summary || '';
+    property.main_description_notes = mainDesc.notes || '';
+    property.main_description_interaction = mainDesc.interaction || '';
+    property.main_description_neighbourhood = mainDesc.neighbourhood || '';
+    property.main_description_space = mainDesc.space || '';
+    property.main_description_access = mainDesc.access || '';
+    property.main_description_transit = mainDesc.transit || '';
+    property.main_description_houseManual = mainDesc.houseManual || '';
+    property.main_description_locale = mainDesc.locale || 'en_US';
+    
+    // Character counts for each field (useful for editing)
+    property.description_name_length = (mainDesc.name || '').length;
+    property.description_shortSummary_length = (mainDesc.shortSummary || '').length;
+    property.description_longDescription_length = (mainDesc.summary || '').length;
+    property.description_notes_length = (mainDesc.notes || '').length;
+    property.description_interaction_length = (mainDesc.interaction || '').length;
+    property.description_neighbourhood_length = (mainDesc.neighbourhood || '').length;
+    property.description_space_length = (mainDesc.space || '').length;
+    property.description_access_length = (mainDesc.access || '').length;
+    property.description_transit_length = (mainDesc.transit || '').length;
+    property.description_houseManual_length = (mainDesc.houseManual || '').length;
+    
+    console.log(`   📊 Description stats: Name=${property.description_name_length}chars, Summary=${property.description_shortSummary_length}chars`);
+    
+  } else {
+    console.log(`   ⚠️ No descriptions found for ${property.uid}`);
+    
+    // Set empty values for all description fields
+    const emptyFields = [
+      'description_name', 'description_locale', 'description_shortSummary', 
+      'description_longDescription', 'description_notes', 'description_interaction',
+      'description_neighbourhood', 'description_space', 'description_access', 
+      'description_transit', 'description_houseManual',
+      'main_description_name', 'main_description_shortSummary', 'main_description_longDescription',
+      'main_description_notes', 'main_description_interaction', 'main_description_neighbourhood',
+      'main_description_space', 'main_description_access', 'main_description_transit',
+      'main_description_houseManual', 'main_description_locale'
+    ];
+    
+    emptyFields.forEach(field => {
+      property[field] = '';
+    });
+    
+    // Set length counters to 0
+    const lengthFields = [
+      'description_name_length', 'description_shortSummary_length', 'description_longDescription_length',
+      'description_notes_length', 'description_interaction_length', 'description_neighbourhood_length',
+      'description_space_length', 'description_access_length', 'description_transit_length',
+      'description_houseManual_length'
+    ];
+    
+    lengthFields.forEach(field => {
+      property[field] = 0;
+    });
+  }
+}
+
+// FIXED: Enhanced REST API export with proper description field separation
 async function exportAllPropertiesRESTFocused(outputDir: string) {
-  console.log("🔧 Using REST API with proper _limit parameter to get ALL 89 properties...\n");
+  console.log("🔧 Using REST API to get ALL properties with SEPARATED description fields...\n");
   
-  const allProperties: any[] = [];
-  const foundUIDs = new Set<string>();
-  
-  // Strategy 1: Use _limit parameter with high value (as shown in API docs)
-  console.log("📡 Strategy 1: High _limit parameter...");
-  try {
-    const response = await axios.get(`${ENV.BASE}/properties`, {
-      params: { 
-        agencyUid: ENV.AGENCY_UID,
-        _limit: 200  // Using _limit as shown in API docs
-      },
-      headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
-    });
-    
-    const properties = response.data?.properties || response.data?.data || [];
-    properties.forEach((prop: any) => {
-      if (!foundUIDs.has(prop.uid)) {
-        foundUIDs.add(prop.uid);
-        allProperties.push(prop);
-      }
-    });
-    console.log(`   ✅ High _limit: Found ${properties.length} properties`);
-  } catch (error: any) {
-    console.log(`   ❌ High _limit failed: ${error?.response?.status}`);
-  }
-
-  // Strategy 2: Pagination with _cursor
-  if (allProperties.length > 0) {
-    console.log("📡 Strategy 2: Using _cursor for pagination...");
-    
-    let cursor = null;
-    let page = 1;
-    const maxPages = 10; // Safety limit
-    
-    while (page <= maxPages) {
-      try {
-        const params: any = {
-          agencyUid: ENV.AGENCY_UID,
-          _limit: 50
-        };
-        
-        if (cursor) {
-          params._cursor = cursor;
-        }
-        
-        const response = await axios.get(`${ENV.BASE}/properties`, {
-          params,
-          headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
-        });
-        
-        const properties = response.data?.properties || response.data?.data || [];
-        let newCount = 0;
-        
-        properties.forEach((prop: any) => {
-          if (!foundUIDs.has(prop.uid)) {
-            foundUIDs.add(prop.uid);
-            allProperties.push(prop);
-            newCount++;
-          }
-        });
-        
-        console.log(`   📄 Page ${page}: ${properties.length} total, ${newCount} new properties`);
-        
-        // Check for next cursor
-        const nextCursor = response.data?._paging?._nextCursor || 
-                          response.data?.paging?.nextCursor ||
-                          response.data?.nextCursor;
-        
-        if (!nextCursor || newCount === 0) {
-          console.log(`   ✅ Pagination complete (no more pages)`);
-          break;
-        }
-        
-        cursor = nextCursor;
-        page++;
-        
-        // Small delay between requests
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-      } catch (error: any) {
-        console.log(`   ❌ Page ${page} failed: ${error?.response?.status}`);
-        break;
-      }
-    }
-  }
-
-  // Strategy 3: Try different date ranges with modifiedSince
-  if (allProperties.length < 80) {
-    console.log("📅 Strategy 3: Date ranges with modifiedSince...");
-    
-    const dateRanges = [
-      "2024-01-01T00:00:00",
-      "2023-01-01T00:00:00", 
-      "2022-01-01T00:00:00",
-      "2021-01-01T00:00:00",
-      "2020-01-01T00:00:00"
-    ];
-    
-    for (const modifiedSince of dateRanges) {
-      try {
-        const response = await axios.get(`${ENV.BASE}/properties`, {
-          params: { 
-            agencyUid: ENV.AGENCY_UID,
-            _limit: 200,
-            modifiedSince  // REST API equivalent of updatedSince
-          },
-          headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
-        });
-        
-        const properties = response.data?.properties || response.data?.data || [];
-        let newCount = 0;
-        
-        properties.forEach((prop: any) => {
-          if (!foundUIDs.has(prop.uid)) {
-            foundUIDs.add(prop.uid);
-            allProperties.push(prop);
-            newCount++;
-          }
-        });
-        
-        console.log(`   📅 Since ${modifiedSince.split('T')[0]}: +${newCount} new properties`);
-        
-        if (allProperties.length >= 85) {
-          console.log(`   🎉 Found enough properties, stopping date range search`);
-          break;
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } catch (error: any) {
-        console.log(`   ⚠️ Date ${modifiedSince.split('T')[0]} failed: ${error?.response?.status}`);
-      }
-    }
-  }
-
-  // Strategy 4: Try without agency filter (as this found 20 new in GraphQL)
-  if (allProperties.length < 80) {
-    console.log("🌐 Strategy 4: Removing agency filter...");
-    try {
-      const response = await axios.get(`${ENV.BASE}/properties`, {
-        params: { 
-          _limit: 200  // No agencyUid - this found new properties in GraphQL
-        },
-        headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
-      });
-      
-      const properties = response.data?.properties || response.data?.data || [];
-      let newCount = 0;
-      
-      // Filter manually for your agency in the results
-      properties.forEach((prop: any) => {
-        const isYourAgency = prop.agencyUid === ENV.AGENCY_UID || 
-                           prop.agency?.uid === ENV.AGENCY_UID;
-        
-        if (isYourAgency && !foundUIDs.has(prop.uid)) {
-          foundUIDs.add(prop.uid);
-          allProperties.push(prop);
-          newCount++;
-        }
-      });
-      
-      console.log(`   🎯 No agency filter: +${newCount} new properties for your agency`);
-    } catch (error: any) {
-      console.log(`   ❌ No agency filter failed: ${error?.response?.status}`);
-    }
-  }
-
-  // Strategy 5: Try includeArchived and other status filters
-  if (allProperties.length < 80) {
-    console.log("📋 Strategy 5: Status filters...");
-    
-    const statusFilters = [
-      { name: "include archived", params: { includeArchived: true } },
-      { name: "include deleted", params: { includeDeleted: true } },
-      { name: "inactive only", params: { isActive: false } },
-      { name: "all statuses", params: { includeArchived: true, includeDeleted: true } }
-    ];
-    
-    for (const filter of statusFilters) {
-      try {
-        const response = await axios.get(`${ENV.BASE}/properties`, {
-          params: { 
-            agencyUid: ENV.AGENCY_UID,
-            _limit: 200,
-            ...filter.params
-          },
-          headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
-        });
-        
-        const properties = response.data?.properties || response.data?.data || [];
-        let newCount = 0;
-        
-        properties.forEach((prop: any) => {
-          if (!foundUIDs.has(prop.uid)) {
-            foundUIDs.add(prop.uid);
-            allProperties.push(prop);
-            newCount++;
-          }
-        });
-        
-        console.log(`   📊 ${filter.name}: +${newCount} new properties`);
-        
-        if (allProperties.length >= 85) {
-          console.log(`   🎉 Found enough properties, stopping filter search`);
-          break;
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } catch (error: any) {
-        console.log(`   ⚠️ ${filter.name} failed: ${error?.response?.status}`);
-      }
-    }
-  }
-
-  // NEW: Fetch descriptions for all properties
-  if (allProperties.length > 0) {
-    console.log(`\n📝 Fetching descriptions for ${allProperties.length} properties...`);
-    
-    for (let i = 0; i < allProperties.length; i++) {
-      const property = allProperties[i];
-      
-      try {
-        console.log(`   📄 Fetching description ${i + 1}/${allProperties.length}: ${property.name || property.uid}`);
-        
-        const descResponse = await axios.get(`${ENV.BASE}/property-descriptions`, {
-          params: { 
-            propertyUid: property.uid
-          },
-          headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
-        });
-        
-        console.log(`   🔍 Description response status: ${descResponse.status}`);
-        console.log(`   📊 Description data type:`, typeof descResponse.data);
-        console.log(`   📋 Description data:`, JSON.stringify(descResponse.data).substring(0, 200) + '...');
-        
-        // Organize description data using the API structure
-        if (descResponse.data && Array.isArray(descResponse.data)) {
-          property.descriptions = descResponse.data;
-          
-          // Extract structured description fields for each locale
-          descResponse.data.forEach((desc: any, index: number) => {
-            const locale = desc.locale || desc.language || 'default';
-            const prefix = index === 0 ? 'description' : `description_${locale}`;
-            
-            // Map the API fields to CSV columns
-            property[`${prefix}_name`] = desc.name || '';
-            property[`${prefix}_shortSummary`] = desc.shortSummary || '';
-            property[`${prefix}_summary`] = desc.summary || '';
-            property[`${prefix}_notes`] = desc.notes || '';
-            property[`${prefix}_access`] = desc.access || '';
-            property[`${prefix}_transit`] = desc.transit || '';
-            property[`${prefix}_interaction`] = desc.interaction || '';
-            property[`${prefix}_neighbourhood`] = desc.neighbourhood || '';
-            property[`${prefix}_space`] = desc.space || '';
-            property[`${prefix}_houseManual`] = desc.houseManual || '';
-            property[`${prefix}_locale`] = desc.locale || '';
-          });
-          
-          // For easy access, also set the primary (first) description fields
-          if (descResponse.data.length > 0) {
-            const primaryDesc = descResponse.data[0];
-            property.mainDescription_name = primaryDesc.name || '';
-            property.mainDescription_shortSummary = primaryDesc.shortSummary || '';
-            property.mainDescription_summary = primaryDesc.summary || '';
-            property.mainDescription_notes = primaryDesc.notes || '';
-            property.mainDescription_access = primaryDesc.access || '';
-            property.mainDescription_transit = primaryDesc.transit || '';
-            property.mainDescription_interaction = primaryDesc.interaction || '';
-            property.mainDescription_neighbourhood = primaryDesc.neighbourhood || '';
-            property.mainDescription_space = primaryDesc.space || '';
-            property.mainDescription_houseManual = primaryDesc.houseManual || '';
-            property.mainDescription_locale = primaryDesc.locale || '';
-            
-            console.log(`   ✅ Found ${descResponse.data.length} descriptions for ${property.uid}`);
-          }
-        } else if (descResponse.data && typeof descResponse.data === 'object') {
-          // Handle single description object (not array)
-          const desc = descResponse.data;
-          property.descriptions = [desc];
-          
-          property.description_name = desc.name || '';
-          property.description_shortSummary = desc.shortSummary || '';
-          property.description_summary = desc.summary || '';
-          property.description_notes = desc.notes || '';
-          property.description_access = desc.access || '';
-          property.description_transit = desc.transit || '';
-          property.description_interaction = desc.interaction || '';
-          property.description_neighbourhood = desc.neighbourhood || '';
-          property.description_space = desc.space || '';
-          property.description_houseManual = desc.houseManual || '';
-          property.description_locale = desc.locale || '';
-          
-          // Also set main description fields
-          property.mainDescription_name = desc.name || '';
-          property.mainDescription_shortSummary = desc.shortSummary || '';
-          property.mainDescription_summary = desc.summary || '';
-          property.mainDescription_notes = desc.notes || '';
-          property.mainDescription_access = desc.access || '';
-          property.mainDescription_transit = desc.transit || '';
-          property.mainDescription_interaction = desc.interaction || '';
-          property.mainDescription_neighbourhood = desc.neighbourhood || '';
-          property.mainDescription_space = desc.space || '';
-          property.mainDescription_houseManual = desc.houseManual || '';
-          property.mainDescription_locale = desc.locale || '';
-          
-          console.log(`   ✅ Found single description for ${property.uid}`);
-        } else {
-          // If no descriptions found, set empty values
-          console.log(`   ⚠️ No description data found for ${property.uid}`);
-          property.mainDescription_name = '';
-          property.mainDescription_shortSummary = '';
-          property.mainDescription_summary = '';
-          property.mainDescription_notes = '';
-          property.mainDescription_access = '';
-          property.mainDescription_transit = '';
-          property.mainDescription_interaction = '';
-          property.mainDescription_neighbourhood = '';
-          property.mainDescription_space = '';
-          property.mainDescription_houseManual = '';
-          property.mainDescription_locale = '';
-        }
-        
-        // Only delay if we're not on the last property
-        if (i < allProperties.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 300));
-        }
-        
-      } catch (error: any) {
-        console.log(`   ❌ Could not fetch description for ${property.uid}: ${error?.response?.status} - ${error?.response?.statusText}`);
-        console.log(`   📋 Error details:`, error?.response?.data || error?.message);
-        
-        // Set empty values for failed requests
-        property.mainDescription_name = '';
-        property.mainDescription_shortSummary = '';
-        property.mainDescription_summary = '';
-        property.mainDescription_notes = '';
-        property.mainDescription_access = '';
-        property.mainDescription_transit = '';
-        property.mainDescription_interaction = '';
-        property.mainDescription_neighbourhood = '';
-        property.mainDescription_space = '';
-        property.mainDescription_houseManual = '';
-        property.mainDescription_locale = '';
-      }
-    }
-    
-    console.log(`✅ Completed fetching descriptions`);
-  }
-
-  console.log(`\n📊 REST API DISCOVERY COMPLETE:`);
-  console.log(`Total unique properties found: ${allProperties.length}`);
-  console.log(`Expected: 89 properties`);
-  console.log(`Success rate: ${Math.round(allProperties.length / 89 * 100)}%`);
+  // Use the workaround client to get all properties
+  const workaroundClient = new HostfullyClient();
+  const allProperties = await workaroundClient.listAllProperties();
 
   if (allProperties.length === 0) {
     console.error("❌ No properties found! Check API credentials.");
     return;
   }
 
-  // Generate comprehensive CSV
-  await generateComprehensiveCSV(allProperties, outputDir, "rest_focused_export");
+  console.log(`📝 Fetching and parsing descriptions for ${allProperties.length} properties...`);
+  
+  // Fetch descriptions for all properties
+  for (let i = 0; i < allProperties.length; i++) {
+    const property = allProperties[i];
+    
+    try {
+      console.log(`   📄 Fetching description ${i + 1}/${allProperties.length}: ${property.name || property.uid}`);
+      
+      const descResponse = await axios.get(`${ENV.BASE}/property-descriptions`, {
+        params: { 
+          propertyUid: property.uid,
+          agencyUid: ENV.AGENCY_UID
+        },
+        headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY },
+        timeout: 10000
+      });
+      
+      // Use the enhanced parser to extract all fields
+      parsePropertyDescriptions(property, descResponse.data);
+      
+    } catch (error: any) {
+      console.log(`   ❌ Could not fetch description for ${property.uid}: ${error?.response?.status}`);
+      console.log(`   📋 Error: ${error?.response?.data?.apiErrorMessage || error?.message}`);
+      
+      // Use the parser with empty data to set empty fields
+      parsePropertyDescriptions(property, null);
+    }
+    
+    // Rate limiting delay
+    if (i < allProperties.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, ENV.THROTTLE_MS));
+    }
+  }
+  
+  console.log(`✅ Completed fetching and parsing descriptions for ${allProperties.length} properties`);
+
+  console.log(`\n📊 EXPORT SUMMARY:`);
+  console.log(`Total properties found: ${allProperties.length}`);
+  
+  const propertiesWithDescriptions = allProperties.filter(p => p.description_name);
+  console.log(`Properties with descriptions: ${propertiesWithDescriptions.length}`);
+  console.log(`Properties without descriptions: ${allProperties.length - propertiesWithDescriptions.length}`);
+
+  // Generate comprehensive CSV with separate description columns
+  fs.mkdirSync(outputDir, { recursive: true });
+  await generateComprehensiveCSV(allProperties, outputDir, "properties_with_separated_descriptions");
+  
+  console.log(`\n📋 Description fields that will appear as separate CSV columns:`);
+  console.log(`   - description_name (Property name/title)`);
+  console.log(`   - description_shortSummary (Short description)`);
+  console.log(`   - description_longDescription (Long description/summary)`);
+  console.log(`   - description_notes (Notes/additional info)`);
+  console.log(`   - description_interaction (Host interaction)`);
+  console.log(`   - description_neighbourhood (Neighborhood info)`);
+  console.log(`   - description_space (Space description)`);
+  console.log(`   - description_access (Access instructions)`);
+  console.log(`   - description_transit (Transit info)`);
+  console.log(`   - description_houseManual (House rules/manual)`);
+  console.log(`   - description_locale (Language locale)`);
+  console.log(`   + Character count fields for each (*_length)`);
   
   return allProperties;
 }
@@ -726,7 +571,7 @@ async function generateComprehensiveCSV(properties: any[], outputDir: string, pr
       
       // Core identification
       uid: property.uid || '',
-      name: property.name || '',
+      name: property.name || property.title || '',
       isActive: property.isActive ? 'true' : 'false',
     };
     
@@ -785,6 +630,17 @@ async function generateComprehensiveCSV(properties: any[], outputDir: string, pr
   console.log(`   🟠 Partial data (1-79%): ${partial} fields`);
   console.log(`   ❌ Empty (0%): ${empty} fields`);
   
+  // Show description field stats
+  const descriptionFields = fieldsArray.filter(f => f.includes('description'));
+  if (descriptionFields.length > 0) {
+    console.log(`\n📝 Description Fields Found: ${descriptionFields.length}`);
+    descriptionFields.forEach(field => {
+      const count = fieldCounts.get(field) || 0;
+      const percentage = Math.round((count / properties.length) * 100);
+      console.log(`   ${field}: ${count}/${properties.length} (${percentage}%)`);
+    });
+  }
+  
   // Address breakdown
   const addressGroups = properties.reduce((groups: any, prop: any) => {
     const address = getNestedValue(prop, 'address.address') || 'Unknown Address';
@@ -792,7 +648,7 @@ async function generateComprehensiveCSV(properties: any[], outputDir: string, pr
     return groups;
   }, {});
   
-  console.log(`\n🏠 Properties by Address:`);
+  console.log(`\n🏠 Properties by Address (Top 10):`);
   Object.entries(addressGroups)
     .sort((a: any, b: any) => b[1] - a[1])
     .slice(0, 10)
@@ -831,17 +687,16 @@ program
     await investigateAPI();
   });
 
-// COMPREHENSIVE CSV EXPORT - The main command you want!
+// MAIN EXPORT COMMANDS
 program
   .command("export-complete-csv")
-  .description("📊 Export ALL 89 properties with EVERY available field to comprehensive CSV")
+  .description("📊 Export ALL properties with EVERY available field to comprehensive CSV")
   .option("--output <dir>", "Output directory", "./exports")
   .option("--fetch-details", "Fetch detailed data for each property (slower but more complete)", false)
   .action(async (opts: any) => {
     console.log("📊 Exporting ALL properties with COMPLETE field data...\n");
     
     try {
-      // Step 1: Get all properties using GraphQL client
       console.log("🔍 Step 1: Fetching all properties using GraphQL client...");
       const client = new GraphQLHostfullyClient();
       let allProperties = await client.getAllProperties();
@@ -853,7 +708,6 @@ program
       
       console.log(`✅ Retrieved ${allProperties.length} properties from GraphQL`);
       
-      // Step 2: Optionally fetch detailed data for each property
       if (opts.fetchDetails && allProperties.length > 0) {
         console.log(`🔍 Step 2: Fetching detailed data for each property...`);
         const detailedProperties = [];
@@ -863,12 +717,10 @@ program
           console.log(`   📋 Fetching details for property ${i + 1}/${allProperties.length}: ${property.name || property.uid}`);
           
           try {
-            // Check if getPropertyDetails method exists
             if (typeof client.getPropertyDetails === 'function') {
               const detailedProperty = await client.getPropertyDetails(property.uid);
               detailedProperties.push(detailedProperty || property);
             } else {
-              // Fallback to direct API call
               const detailResponse = await axios.get(`${ENV.BASE}/properties/${property.uid}`, {
                 params: { agencyUid: ENV.AGENCY_UID },
                 headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
@@ -876,7 +728,6 @@ program
               detailedProperties.push(detailResponse.data || property);
             }
             
-            // Small delay to avoid rate limiting
             if (i < allProperties.length - 1) {
               await new Promise(resolve => setTimeout(resolve, 200));
             }
@@ -891,10 +742,8 @@ program
         console.log(`✅ Completed detailed data fetching`);
       }
       
-      // Step 3: Generate comprehensive CSV
       await generateComprehensiveCSV(allProperties, opts.output, "hostfully_complete_export");
       
-      // Final summary
       console.log(`\n🎯 EXPORT SUMMARY:`);
       console.log(`Total properties: ${allProperties.length}/89 expected`);
       console.log(`Success rate: ${Math.round(allProperties.length / 89 * 100)}%`);
@@ -916,7 +765,6 @@ program
     }
   });
 
-// NEW REST FOCUSED EXPORT COMMAND
 program
   .command("export-rest-focused")
   .description("🔧 Export ALL properties using focused REST API with _limit parameter")
@@ -925,14 +773,94 @@ program
     await exportAllPropertiesRESTFocused(opts.output);
   });
 
-// NEW COMMAND: Export with descriptions
+// MAIN COMMAND: Export with descriptions
 program
   .command("export-with-descriptions")
-  .description("📝 Export ALL 89 properties with descriptions included")
+  .description("📝 Export ALL properties with descriptions included")
   .option("--output <dir>", "Output directory", "./exports")
   .action(async (opts: any) => {
     console.log("📝 Exporting ALL properties WITH descriptions...\n");
     await exportAllPropertiesRESTFocused(opts.output);
+  });
+
+// DEBUG AND TEST COMMANDS
+program
+  .command("debug-descriptions")
+  .description("🔍 Debug: Fetch descriptions for first 3 properties")
+  .action(async () => {
+    console.log("🔍 Debug: Testing descriptions for first 3 properties...\n");
+    
+    try {
+      // Get first 3 properties using workaround client
+      const workaroundClient = new HostfullyClient();
+      const allProperties = await workaroundClient.listAllProperties();
+      const properties = allProperties.slice(0, 3);
+      
+      if (properties.length === 0) {
+        console.error("❌ No properties found");
+        return;
+      }
+      
+      console.log(`📋 Testing with ${properties.length} properties:\n`);
+      
+      for (let i = 0; i < properties.length; i++) {
+        const property = properties[i];
+        console.log(`🏠 Property ${i + 1}: ${property.uid} - ${property.name || 'Unnamed'}`);
+        
+        try {
+          const descResponse = await axios.get(`${ENV.BASE}/property-descriptions`, {
+            params: { 
+              propertyUid: property.uid,
+              agencyUid: ENV.AGENCY_UID
+            },
+            headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
+          });
+          
+          const descriptionsArray = descResponse.data?.propertyDescriptions || [];
+          
+          if (descriptionsArray && descriptionsArray.length > 0) {
+            // Use the enhanced parser
+            parsePropertyDescriptions(property, descResponse.data);
+            
+            const desc = descriptionsArray[0];
+            console.log(`   ✅ Found description: "${desc.name}"`);
+            console.log(`   📝 Short summary: ${desc.shortSummary?.substring(0, 100)}...`);
+            console.log(`   📋 Has summary: ${desc.summary ? 'Yes' : 'No'}`);
+            console.log(`   📋 Has notes: ${desc.notes ? 'Yes' : 'No'}`);
+            console.log(`   📋 Has house manual: ${desc.houseManual ? 'Yes' : 'No'}`);
+            console.log(`   📋 Has neighbourhood: ${desc.neighbourhood ? 'Yes' : 'No'}`);
+            console.log(`   📋 Has interaction: ${desc.interaction ? 'Yes' : 'No'}`);
+            console.log(`   📋 Has space: ${desc.space ? 'Yes' : 'No'}`);
+            console.log(`   📋 Has access: ${desc.access ? 'Yes' : 'No'}`);
+            console.log(`   📋 Has transit: ${desc.transit ? 'Yes' : 'No'}`);
+            
+            console.log(`   🔧 Parsed into separate fields successfully`);
+          } else {
+            console.log(`   ❌ No descriptions found`);
+            parsePropertyDescriptions(property, null);
+          }
+          
+        } catch (error: any) {
+          console.log(`   ❌ Error fetching description: ${error?.response?.status} - ${error?.message}`);
+        }
+        
+        console.log('');
+        
+        // Small delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      // Test CSV generation with these properties
+      console.log("🧪 Testing CSV generation...");
+      const testOutputDir = "./test-exports";
+      fs.mkdirSync(testOutputDir, { recursive: true });
+      
+      await generateComprehensiveCSV(properties, testOutputDir, "debug_test");
+      console.log("✅ Debug test complete!");
+      
+    } catch (error: any) {
+      console.error("❌ Debug test failed:", error.message);
+    }
   });
 
 program
@@ -942,23 +870,16 @@ program
     console.log("🧪 Testing property descriptions API...\n");
     
     try {
-      // Get one property first
-      const response = await axios.get(`${ENV.BASE}/properties`, {
-        params: { 
-          agencyUid: ENV.AGENCY_UID,
-          _limit: 1
-        },
-        headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
-      });
+      // Get one property first using workaround client
+      const workaroundClient = new HostfullyClient();
+      const allProperties = await workaroundClient.listAllProperties();
       
-      const properties = response.data?.properties || response.data?.data || [];
-      
-      if (properties.length === 0) {
+      if (allProperties.length === 0) {
         console.error("❌ No properties found to test descriptions with");
         return;
       }
       
-      const testProperty = properties[0];
+      const testProperty = allProperties[0];
       console.log(`📋 Testing with property: ${testProperty.uid} - ${testProperty.name || 'Unnamed'}\n`);
       
       // Test different ways to call the descriptions API
@@ -1007,6 +928,10 @@ program
       console.error("❌ Test failed:", error.message);
     }
   });
+
+program
+  .command("test-limits")
+  .description("🚀 Test different _limit values to find optimal setting")
   .action(async () => {
     console.log("🧪 Testing different _limit values...\n");
     
@@ -1055,7 +980,7 @@ program
     }
   });
 
-// GraphQL Commands (Working Solution!)
+// GraphQL Commands
 program
   .command("graphql-test")
   .description("🎉 Test GraphQL access to get ALL properties")
@@ -1102,7 +1027,11 @@ program
   .description("🔍 Discover GraphQL schema to understand available arguments")
   .action(async () => {
     const client = new GraphQLHostfullyClient();
-    await client.discoverGraphQLSchema();
+    if (typeof client.discoverGraphQLSchema === 'function') {
+      await client.discoverGraphQLSchema();
+    } else {
+      console.log("❌ discoverGraphQLSchema method not available on client");
+    }
   });
 
 program
@@ -1112,20 +1041,24 @@ program
     const client = new GraphQLHostfullyClient();
     console.log("🎯 Starting targeted discovery for missing units...\n");
     
-    const missingProperties = await client.discoverMissingUnits();
-    
-    console.log(`\n📊 TARGETED DISCOVERY RESULTS:`);
-    console.log(`Found ${missingProperties.length} additional properties`);
-    
-    if (missingProperties.length > 0) {
-      console.log(`\n📋 New properties found:`);
-      missingProperties.forEach((prop, i) => {
-        console.log(`   ${i+1}. ${prop.uid} - ${prop.name || 'Unnamed'}`);
-        console.log(`      Address: ${prop.address?.address}, ${prop.address?.city}`);
-      });
+    if (typeof client.discoverMissingUnits === 'function') {
+      const missingProperties = await client.discoverMissingUnits();
+      
+      console.log(`\n📊 TARGETED DISCOVERY RESULTS:`);
+      console.log(`Found ${missingProperties.length} additional properties`);
+      
+      if (missingProperties.length > 0) {
+        console.log(`\n📋 New properties found:`);
+        missingProperties.forEach((prop, i) => {
+          console.log(`   ${i+1}. ${prop.uid} - ${prop.name || 'Unnamed'}`);
+          console.log(`      Address: ${prop.address?.address}, ${prop.address?.city}`);
+        });
+      } else {
+        console.log(`\n❌ No additional properties found through targeted discovery`);
+        console.log(`Consider running 'npm start discover-schema' to debug available parameters`);
+      }
     } else {
-      console.log(`\n❌ No additional properties found through targeted discovery`);
-      console.log(`Consider running 'npm start discover-schema' to debug available parameters`);
+      console.log("❌ discoverMissingUnits method not available on client");
     }
   });
 
@@ -1223,23 +1156,16 @@ program
     }
   });
 
-// NEW COMMAND: List all 89 properties using REST API
+// List all properties using REST API
 program
   .command("list-all")
-  .description("📋 List ALL 89 properties using REST API")
+  .description("📋 List ALL properties using REST API")
   .action(async () => {
     console.log("📋 Listing ALL properties using REST API...\n");
     
     try {
-      const response = await axios.get(`${ENV.BASE}/properties`, {
-        params: { 
-          agencyUid: ENV.AGENCY_UID,
-          _limit: 200  // High limit to get all properties
-        },
-        headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
-      });
-      
-      const properties = response.data?.properties || response.data?.data || [];
+      const workaroundClient = new HostfullyClient();
+      const properties = await workaroundClient.listAllProperties();
       
       console.log(`🎉 Found ${properties.length} properties total:\n`);
       

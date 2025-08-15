@@ -1,4 +1,4 @@
-// src/api/hostfullyClient.ts - WORKAROUND VERSION
+// src/api/hostfullyClient.ts - OPTIMIZED VERSION
 import axios, { AxiosError } from "axios";
 import { ENV } from "../utils/env";
 
@@ -35,6 +35,50 @@ export interface HostfullyProperty {
   availability?: {
     maxGuests?: number;
   };
+
+  // Raw descriptions from API (added by parsePropertyDescriptions)
+  rawDescriptions?: any[];
+
+  // Individual description fields (added by parsePropertyDescriptions function)
+  description_name?: string;
+  description_locale?: string;
+  description_shortSummary?: string;
+  description_longDescription?: string;
+  description_notes?: string;
+  description_interaction?: string;
+  description_neighbourhood?: string;
+  description_space?: string;
+  description_access?: string;
+  description_transit?: string;
+  description_houseManual?: string;
+
+  // Main description fields (convenience aliases)
+  main_description_name?: string;
+  main_description_shortSummary?: string;
+  main_description_longDescription?: string;
+  main_description_notes?: string;
+  main_description_interaction?: string;
+  main_description_neighbourhood?: string;
+  main_description_space?: string;
+  main_description_access?: string;
+  main_description_transit?: string;
+  main_description_houseManual?: string;
+  main_description_locale?: string;
+
+  // Character count fields (added by parsePropertyDescriptions)
+  description_name_length?: number;
+  description_shortSummary_length?: number;
+  description_longDescription_length?: number;
+  description_notes_length?: number;
+  description_interaction_length?: number;
+  description_neighbourhood_length?: number;
+  description_space_length?: number;
+  description_access_length?: number;
+  description_transit_length?: number;
+  description_houseManual_length?: number;
+
+  // Allow any additional fields that might be added dynamically
+  [key: string]: any;
 }
 
 type Meta = { count?: number; totalCount?: number; nextPage?: number; nextOffset?: number };
@@ -99,16 +143,88 @@ export class HostfullyClient {
   }
 
   /**
-   * WORKAROUND: Try multiple API strategies to get all properties
-   * The Hostfully API seems to have pagination bugs, so we'll try:
-   * 1. Different API endpoints
-   * 2. Different parameter combinations
-   * 3. Various query filters
-   * 4. Time-based queries if available
+   * OPTIMIZED: Get all properties efficiently using the known working approach
    */
   async listAllProperties(params: Record<string, any> = {}): Promise<HostfullyProperty[]> {
     if (!ENV.AGENCY_UID) throw new Error("AGENCY_UID missing in .env");
     
+    console.log("[hostfully] Using optimized strategy: _limit=200...");
+    
+    try {
+      // Strategy 1: Direct approach with _limit=200 (known to work from original code)
+      const res = await this.getWithRetry("/properties", {
+        agencyUid: ENV.AGENCY_UID,
+        _limit: 200,
+        includeArchived: true,
+        ...params
+      });
+      
+      const properties = this.normalize<HostfullyProperty>(res.data);
+      console.log(`[hostfully] Found ${properties.length} properties with _limit=200`);
+      
+      if (properties.length >= 80) {
+        console.log(`[hostfully] Success! Found expected number of properties`);
+        return properties;
+      }
+      
+      // If we didn't get enough, try a few more optimized strategies
+      console.log(`[hostfully] Only found ${properties.length} properties, trying additional strategies...`);
+      
+      const allProperties: HostfullyProperty[] = [...properties];
+      const seen = new Set<string>(properties.map(p => p.uid));
+      
+      // Strategy 2: Try with different status filters
+      const additionalStrategies = [
+        { name: "includeDeleted", params: { agencyUid: ENV.AGENCY_UID, _limit: 200, includeDeleted: true } },
+        { name: "all-statuses", params: { agencyUid: ENV.AGENCY_UID, _limit: 200, includeArchived: true, includeDeleted: true } },
+        { name: "no-agency-filter", params: { _limit: 200 } }
+      ];
+      
+      for (const strategy of additionalStrategies) {
+        try {
+          console.log(`[hostfully] Trying ${strategy.name}...`);
+          const res = await this.getWithRetry("/properties", strategy.params);
+          const items = this.normalize<HostfullyProperty>(res.data);
+          
+          let added = 0;
+          items.forEach(item => {
+            // Filter for your agency if we removed the agency filter
+            const isYourAgency = strategy.name === 'no-agency-filter' 
+              ? (item.agencyUid === ENV.AGENCY_UID || (item as any).agency?.uid === ENV.AGENCY_UID)
+              : true;
+              
+            if (isYourAgency && !seen.has(item.uid)) {
+              seen.add(item.uid);
+              allProperties.push(item);
+              added++;
+            }
+          });
+          
+          console.log(`[hostfully] ${strategy.name}: +${added} new properties (total: ${allProperties.length})`);
+          
+          if (allProperties.length >= 85) {
+            console.log(`[hostfully] Found sufficient properties, stopping`);
+            break;
+          }
+          
+        } catch (error) {
+          console.log(`[hostfully] ${strategy.name} failed, continuing...`);
+        }
+      }
+      
+      console.log(`[hostfully] Optimized search complete: Found ${allProperties.length} total properties`);
+      return allProperties;
+      
+    } catch (error) {
+      console.error("[hostfully] Optimized strategy failed, falling back to full workaround...");
+      return this.listAllPropertiesWorkaround(params);
+    }
+  }
+
+  /**
+   * FALLBACK: Full workaround method (only used if optimized approach fails)
+   */
+  private async listAllPropertiesWorkaround(params: Record<string, any> = {}): Promise<HostfullyProperty[]> {
     const DEBUG = process.env.DEBUG === "true";
     const THROTTLE_MS = Number(process.env.THROTTLE_MS || 1000);
     const all: HostfullyProperty[] = [];
@@ -120,15 +236,15 @@ export class HostfullyClient {
       ...params,
     };
 
-    console.log("[hostfully] Starting workaround strategies to get all properties...");
+    console.log("[hostfully] Starting comprehensive workaround strategies...");
 
-    // Strategy 1: Try different limits (sometimes different limits return different data)
-    const limits = [1, 5, 10, 15, 20, 25, 30, 50];
+    // Try different limits using _limit parameter
+    const limits = [200, 100, 50, 30, 25, 20, 15, 10, 5, 1]; // Start with highest first
     for (const limit of limits) {
-      if (DEBUG) console.log(`[hostfully] Trying limit=${limit}...`);
+      if (DEBUG) console.log(`[hostfully] Trying _limit=${limit}...`);
       
       try {
-        const res = await this.getWithRetry("/properties", { ...baseParams, limit });
+        const res = await this.getWithRetry("/properties", { ...baseParams, _limit: limit });
         const items = this.normalize<HostfullyProperty>(res.data);
         
         let added = 0;
@@ -140,143 +256,57 @@ export class HostfullyClient {
           }
         }
         
-        if (DEBUG) console.log(`[hostfully] limit=${limit} -> ${items.length} items, ${added} new, total=${all.length}`);
+        if (DEBUG) console.log(`[hostfully] _limit=${limit} -> ${items.length} items, ${added} new, total=${all.length}`);
+        
+        // If we found a good amount, don't bother with smaller limits
+        if (limit >= 50 && items.length >= 50) {
+          console.log(`[hostfully] Found substantial results with _limit=${limit}, skipping smaller limits`);
+          break;
+        }
+        
         if (THROTTLE_MS) await sleep(THROTTLE_MS);
         
       } catch (e: any) {
-        if (DEBUG) console.log(`[hostfully] limit=${limit} failed:`, e?.response?.status);
+        if (DEBUG) console.log(`[hostfully] _limit=${limit} failed:`, e?.response?.status);
       }
     }
 
-    // Strategy 2: Try includeArchived variations
-    for (const archived of [true, false]) {
-      if (DEBUG) console.log(`[hostfully] Trying includeArchived=${archived}...`);
-      
-      try {
-        const res = await this.getWithRetry("/properties", { 
-          ...baseParams, 
-          includeArchived: archived,
-          limit: 20 
-        });
-        const items = this.normalize<HostfullyProperty>(res.data);
+    // Try includeArchived variations (only if we don't have enough)
+    if (all.length < 80) {
+      for (const archived of [true, false]) {
+        if (DEBUG) console.log(`[hostfully] Trying includeArchived=${archived}...`);
         
-        let added = 0;
-        for (const item of items) {
-          if (!seen.has(item.uid)) {
-            seen.add(item.uid);
-            all.push(item);
-            added++;
+        try {
+          const res = await this.getWithRetry("/properties", { 
+            ...baseParams, 
+            includeArchived: archived,
+            _limit: 200 
+          });
+          const items = this.normalize<HostfullyProperty>(res.data);
+          
+          let added = 0;
+          for (const item of items) {
+            if (!seen.has(item.uid)) {
+              seen.add(item.uid);
+              all.push(item);
+              added++;
+            }
           }
+          
+          if (DEBUG) console.log(`[hostfully] archived=${archived} -> ${items.length} items, ${added} new, total=${all.length}`);
+          if (THROTTLE_MS) await sleep(THROTTLE_MS);
+          
+        } catch (e: any) {
+          if (DEBUG) console.log(`[hostfully] archived=${archived} failed:`, e?.response?.status);
         }
-        
-        if (DEBUG) console.log(`[hostfully] archived=${archived} -> ${items.length} items, ${added} new, total=${all.length}`);
-        if (THROTTLE_MS) await sleep(THROTTLE_MS);
-        
-      } catch (e: any) {
-        if (DEBUG) console.log(`[hostfully] archived=${archived} failed:`, e?.response?.status);
       }
     }
 
-    // Strategy 3: Try different API endpoints (sometimes /properties vs /listings behave differently)
-    const endpoints = ["/properties", "/listings"];
-    for (const endpoint of endpoints) {
-      if (DEBUG) console.log(`[hostfully] Trying endpoint=${endpoint}...`);
-      
-      try {
-        const res = await this.getWithRetry(endpoint, { ...baseParams, limit: 20 });
-        const items = this.normalize<HostfullyProperty>(res.data);
-        
-        let added = 0;
-        for (const item of items) {
-          if (!seen.has(item.uid)) {
-            seen.add(item.uid);
-            all.push(item);
-            added++;
-          }
-        }
-        
-        if (DEBUG) console.log(`[hostfully] ${endpoint} -> ${items.length} items, ${added} new, total=${all.length}`);
-        if (THROTTLE_MS) await sleep(THROTTLE_MS);
-        
-      } catch (e: any) {
-        if (DEBUG) console.log(`[hostfully] ${endpoint} failed:`, e?.response?.status);
-      }
-    }
-
-    // Strategy 4: Try without agencyUid (sometimes this returns different results)
-    if (DEBUG) console.log(`[hostfully] Trying without agencyUid...`);
-    try {
-      const { agencyUid, ...paramsWithoutAgency } = baseParams;
-      const res = await this.getWithRetry("/properties", { ...paramsWithoutAgency, limit: 20 });
-      const items = this.normalize<HostfullyProperty>(res.data);
-      
-      let added = 0;
-      for (const item of items) {
-        if (!seen.has(item.uid)) {
-          seen.add(item.uid);
-          all.push(item);
-          added++;
-        }
-      }
-      
-      if (DEBUG) console.log(`[hostfully] no-agency -> ${items.length} items, ${added} new, total=${all.length}`);
-      if (THROTTLE_MS) await sleep(THROTTLE_MS);
-      
-    } catch (e: any) {
-      if (DEBUG) console.log(`[hostfully] no-agency failed:`, e?.response?.status);
-    }
-
-    // Strategy 5: Try different sorting/filtering parameters
-    const sortOptions = [
-      { sort: "name" },
-      { sort: "created" },
-      { sort: "updated" },
-      { orderBy: "name" },
-      { orderBy: "createdAt" },
-      { orderBy: "updatedAt" },
-    ];
-
-    for (const sortOpt of sortOptions) {
-      if (DEBUG) console.log(`[hostfully] Trying sort=${JSON.stringify(sortOpt)}...`);
-      
-      try {
-        const res = await this.getWithRetry("/properties", { 
-          ...baseParams, 
-          ...sortOpt,
-          limit: 20 
-        });
-        const items = this.normalize<HostfullyProperty>(res.data);
-        
-        let added = 0;
-        for (const item of items) {
-          if (!seen.has(item.uid)) {
-            seen.add(item.uid);
-            all.push(item);
-            added++;
-          }
-        }
-        
-        if (DEBUG) console.log(`[hostfully] ${JSON.stringify(sortOpt)} -> ${items.length} items, ${added} new, total=${all.length}`);
-        if (THROTTLE_MS) await sleep(THROTTLE_MS);
-        
-      } catch (e: any) {
-        if (DEBUG) console.log(`[hostfully] ${JSON.stringify(sortOpt)} failed:`, e?.response?.status);
-      }
-    }
-
-    // Strategy 6: Try fetching individual properties if we know some UIDs
-    // This won't help discover new UIDs, but can validate the approach
-    
     console.log(`[hostfully] Workaround complete: Found ${all.length} unique properties`);
     
     if (all.length < 89) {
-      console.warn(`[hostfully] ⚠️  Still missing properties (${all.length}/89 found)`);
-      console.warn(`[hostfully] This appears to be a Hostfully API pagination bug.`);
-      console.warn(`[hostfully] Recommendations:`);
-      console.warn(`[hostfully] 1. Contact Hostfully support about pagination issues`);
-      console.warn(`[hostfully] 2. Try a different API version (v3.1, v4.0 if available)`);
-      console.warn(`[hostfully] 3. Use their web interface to export all properties`);
-      console.warn(`[hostfully] 4. Check if there are property status filters affecting results`);
+      console.warn(`[hostfully] Still missing properties (${all.length}/89 found)`);
+      console.warn(`[hostfully] This appears to be a Hostfully API pagination issue.`);
     }
 
     return all;
@@ -335,7 +365,7 @@ export class HostfullyClient {
     const res = await this.getWithRetry("/properties", {
       agencyUid: ENV.AGENCY_UID,
       includeArchived: false,
-      limit: 1, // Just get metadata
+      _limit: 1, // Just get metadata
       ...params,
     });
     
