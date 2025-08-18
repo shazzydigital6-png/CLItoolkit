@@ -7,23 +7,18 @@
   "scripts": {
     "dev": "npm run dev:ipv4",
     "dev:ipv4": "cross-env HOST=127.0.0.1 NODE_ENV=development tsx src/web/server.ts",
-
     "dev:share": "concurrently -k --success=none -n server,tunnel -c blue,magenta \"npm run dev:ipv4\" \"npm run tunnel:wait\"",
     "tunnel:wait": "cross-env-shell \"PORT=${PORT:-3000} wait-on -t 300000 http://127.0.0.1:$PORT/api/health && cloudflared tunnel --url http://127.0.0.1:$PORT\"",
     "tunnel": "cross-env-shell \"PORT=${PORT:-3000} cloudflared tunnel --url http://127.0.0.1:$PORT\"",
-
     "build": "tsc -p tsconfig.json",
     "postbuild": "copyfiles -u 2 src/web/public/* dist/web/public",
     "start": "cross-env NODE_ENV=production node dist/web/server.js",
     "serve": "cross-env NODE_ENV=production node dist/web/server.js",
     "build:watch": "tsc -w -p tsconfig.json",
     "clean": "rm -rf dist",
-
     "health": "curl -s http://127.0.0.1:${PORT:-3000}/api/health && echo",
-
     "cli": "ts-node src/cli/index.ts",
     "cli:export": "ts-node src/cli/export.ts",
-
     "test": "jest",
     "lint": "eslint src --ext .ts",
     "security-check": "npm audit && npm run security:snyk",
@@ -42,7 +37,8 @@
     "express": "^4.18.2",
     "express-rate-limit": "^7.5.1",
     "helmet": "^7.2.0",
-    "morgan": "^1.10.1"
+    "morgan": "^1.10.1",
+    "ngrok": "^5.0.0-beta.2"
   },
   "devDependencies": {
     "@types/compression": "^1.7.5",
