@@ -94,66 +94,62 @@ export class GraphQLHostfullyClient {
     };
   }
 
-  /** ---- Public: get all properties (dedup across a couple strategies) ---- */
+  
   async getAllProperties(): Promise<GraphQLProperty[]> {
-    const fields = `
-      uid
-      name
-      isActive
-      mainPicture { tinyThumbnail largeThumbnail }
-      businessType
-      propertyType
-      availability { maxGuests }
-      address { address address2 zipCode city state }
-      subUnits {
-        uid isActive name
-        mainPicture { tinyThumbnail largeThumbnail }
-        availability { maxGuests }
-        businessType propertyType tags
-      }
-      numberOfSubUnits
-      pricing { currency }
-      tags
-    `;
+  const fields = `
+    uid name isActive mainPicture { tinyThumbnail largeThumbnail }
+    businessType propertyType availability { maxGuests }
+    address { address address2 zipCode city state }
+    subUnits { uid isActive name mainPicture { tinyThumbnail largeThumbnail }
+      availability { maxGuests } businessType propertyType tags }
+    numberOfSubUnits pricing { currency } tags
+  `;
 
-    const seen = new Set<string>();
-    const all: GraphQLProperty[] = [];
+  const seen = new Set<string>();
+  const all: GraphQLProperty[] = [];
 
-    // Strategy A: topLevel only (fast)
-    const qA = `
-      query PropsA($agencyUid: String!, $limit: Int) {
-        properties(agencyUid: $agencyUid, topLevelOnly: true, limit: $limit) { ${fields} }
+  // Try different strategies with increasing limits
+  const strategies = [
+    { topLevelOnly: true, limit: 500 },
+    { topLevelOnly: false, limit: 500 },
+    { topLevelOnly: true, limit: 1000 },
+    { topLevelOnly: false, limit: 1000 },
+    { topLevelOnly: true, limit: 2000 },
+    { topLevelOnly: false, limit: 2000 }
+  ];
+
+  for (const strategy of strategies) {
+    const query = `
+      query Properties($agencyUid: String!, $limit: Int, $topLevelOnly: Boolean) {
+        properties(agencyUid: $agencyUid, topLevelOnly: $topLevelOnly, limit: $limit) { ${fields} }
       }`;
-    const a = await this.executeQuery<{ properties: GraphQLProperty[] }>(qA, {
-      agencyUid: ENV.AGENCY_UID,
-      limit: 200,
-    });
-    (a.properties || []).forEach((p) => {
-      if (!seen.has(p.uid)) {
-        seen.add(p.uid);
-        all.push(p);
-      }
-    });
-
-    // Strategy B: include sub-units (some installs require this to get all)
-    const qB = `
-      query PropsB($agencyUid: String!, $limit: Int) {
-        properties(agencyUid: $agencyUid, topLevelOnly: false, limit: $limit) { ${fields} }
-      }`;
-    const b = await this.executeQuery<{ properties: GraphQLProperty[] }>(qB, {
-      agencyUid: ENV.AGENCY_UID,
-      limit: 200,
-    });
-    (b.properties || []).forEach((p) => {
-      if (!seen.has(p.uid)) {
-        seen.add(p.uid);
-        all.push(p);
-      }
-    });
-
-    console.log(`📊 GraphQL total unique properties: ${all.length}`);
-    return all;
+    
+    try {
+      const result = await this.executeQuery<{ properties: GraphQLProperty[] }>(query, {
+        agencyUid: ENV.AGENCY_UID,
+        limit: strategy.limit,
+        topLevelOnly: strategy.topLevelOnly
+      });
+      
+      let newCount = 0;
+      (result.properties || []).forEach((p) => {
+        if (!seen.has(p.uid)) {
+          seen.add(p.uid);
+          all.push(p);
+          newCount++;
+        }
+      });
+      
+      console.log(`📊 GraphQL strategy (topLevel: ${strategy.topLevelOnly}, limit: ${strategy.limit}): +${newCount} new, total: ${all.length}`);
+      
+    } catch (e) {
+      console.warn(`GraphQL strategy failed: ${e}`);
+    }
   }
+
+  console.log(`📊 GraphQL total unique properties: ${all.length}`);
+  return all;
+}
 
   /** ---- Public: single property details ---- */
   async getPropertyDetails(uid: string) {

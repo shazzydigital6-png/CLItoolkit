@@ -1,4 +1,4 @@
-// src/web/public/app.js - Enhanced version for existing HTML
+// src/web/public/app.js - Complete Fixed Version
 class PropertyBrowser {
   constructor() {
     this.properties = [];
@@ -6,12 +6,11 @@ class PropertyBrowser {
     this.currentIndex = 0;
     this.cache = new Map();
     this.bindUI();
-    this.showSuccessBanner();
     this.enhanceExistingUI();
   }
 
   bindUI() {
-    // Existing UI elements (unchanged)
+    // Bind to your existing HTML elements
     this.$load = document.getElementById("loadBtn");
     this.$prev = document.getElementById("prevBtn");
     this.$next = document.getElementById("nextBtn");
@@ -26,7 +25,7 @@ class PropertyBrowser {
     this.$grid = document.getElementById("descriptionsGrid");
     this.$download = document.getElementById("downloadBtn");
 
-    // Existing event listeners (unchanged)
+    // Keep your existing event listeners
     this.$load.addEventListener("click", () => this.loadProperties());
     this.$prev.addEventListener("click", () => this.previous());
     this.$next.addEventListener("click", () => this.next());
@@ -36,60 +35,48 @@ class PropertyBrowser {
   }
 
   enhanceExistingUI() {
-    // Add enhanced styles to your existing page
-    const enhancedStyles = document.createElement('style');
-    enhancedStyles.textContent = `
-      /* Success Banner Styles */
-      .success-banner {
-        background: linear-gradient(135deg, #10b981, #059669);
-        color: white;
-        padding: 16px 20px;
-        margin: 0 -30px 20px -30px;
-        border-radius: 0 0 8px 8px;
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-        animation: slideDown 0.5s ease-out;
-        position: relative;
+    // Add enhanced styles
+    const styles = document.createElement('style');
+    styles.textContent = `
+      /* Property Dropdown Styles */
+      .property-dropdown-container {
+        background: #f8f9fa;
+        padding: 16px;
+        border-radius: 6px;
+        margin-bottom: 16px;
+        border: 1px solid #dee2e6;
       }
-      
-      .banner-content {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        max-width: 1140px;
-        margin: 0 auto;
-      }
-      
-      .banner-icon {
-        font-size: 24px;
-        animation: bounce 2s infinite;
-      }
-      
-      .banner-text strong {
-        font-weight: 700;
-      }
-      
-      .banner-subtext {
+
+      .property-dropdown {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        background: white;
         font-size: 14px;
-        opacity: 0.9;
-        margin-top: 4px;
-      }
-      
-      .banner-close {
-        background: rgba(255,255,255,0.2);
-        border: none;
-        color: white;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
+        color: #495057;
         cursor: pointer;
-        margin-left: auto;
-        font-size: 18px;
-        line-height: 1;
-        transition: background 0.2s;
+        transition: border-color 0.2s;
       }
-      
-      .banner-close:hover {
-        background: rgba(255,255,255,0.3);
+
+      .property-dropdown:focus {
+        outline: none;
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+      }
+
+      .dropdown-label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #495057;
+        font-size: 14px;
+      }
+
+      .dropdown-helper {
+        font-size: 12px;
+        color: #6c757d;
+        margin-top: 4px;
       }
 
       /* Enhanced Property Display */
@@ -124,15 +111,6 @@ class PropertyBrowser {
         margin-left: 8px;
       }
 
-      /* Enhanced Controls */
-      .enhanced-controls {
-        background: #f8f9fa;
-        padding: 16px;
-        border-radius: 6px;
-        margin-bottom: 16px;
-        border: 1px solid #dee2e6;
-      }
-
       .quick-stats {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
@@ -161,7 +139,7 @@ class PropertyBrowser {
         font-weight: 600;
       }
 
-      /* Success Messages */
+      /* Toast notifications */
       .success-toast {
         position: fixed;
         top: 20px;
@@ -176,7 +154,12 @@ class PropertyBrowser {
         max-width: 300px;
       }
 
-      /* Analytics Button (if we add it) */
+      @keyframes slideInRight {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+
+      /* Analytics Button */
       .analytics-btn {
         background: #6f42c1;
         margin-left: 8px;
@@ -186,54 +169,99 @@ class PropertyBrowser {
         background: #5a2d91;
       }
 
-      /* Animations */
-      @keyframes slideDown {
-        from { transform: translateY(-100%); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
+      /* Modal for analytics - FIXED VERSION */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
       }
 
-      @keyframes bounce {
-        0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-        40% { transform: translateY(-10px); }
-        60% { transform: translateY(-5px); }
+      .modal-content {
+        background: white;
+        border-radius: 8px;
+        padding: 0;
+        max-width: 600px;
+        width: 100%;
+        max-height: 80vh;
+        overflow: hidden;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        position: relative;
       }
 
-      @keyframes slideInRight {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 25px;
+        margin: 0;
+        border-bottom: 1px solid #e0e0e0;
+        background: #f8f9fa;
       }
 
-      /* Enhanced Error Styling */
-      .error {
-        animation: shake 0.5s ease-in-out;
+      .modal-body {
+        padding: 25px;
+        overflow-y: auto;
+        max-height: calc(80vh - 80px);
       }
 
-      @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        25% { transform: translateX(-5px); }
-        75% { transform: translateX(5px); }
+      .modal-close {
+        background: none;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        color: #666;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
       }
 
-      /* Responsive improvements */
-      @media (max-width: 768px) {
-        .banner-content {
-          flex-direction: column;
-          text-align: center;
-          gap: 8px;
-        }
-        
-        .banner-close {
-          position: absolute;
-          top: 8px;
-          right: 8px;
-        }
+      .modal-close:hover {
+        background: #e9ecef;
+        color: #000;
+      }
 
-        .quick-stats {
-          grid-template-columns: repeat(2, 1fr);
-        }
+      .analytics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+
+      .metric-box {
+        text-align: center;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        border: 1px solid #e0e0e0;
+      }
+
+      .metric-number {
+        font-size: 24px;
+        font-weight: 600;
+        color: #333;
+      }
+
+      .metric-label {
+        font-size: 12px;
+        color: #666;
+        margin-top: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
       }
     `;
-    document.head.appendChild(enhancedStyles);
+    document.head.appendChild(styles);
 
     // Add analytics button to existing controls
     const analyticsBtn = document.createElement('button');
@@ -246,30 +274,102 @@ class PropertyBrowser {
     if (controls) {
       controls.appendChild(analyticsBtn);
     }
+
+    // Add property dropdown after controls
+    this.addPropertyDropdown();
+
+    // Add global event listeners for modal functionality
+    this.addGlobalEventListeners();
   }
 
-  showSuccessBanner() {
-    // Only show if not shown before
-    if (localStorage.getItem('hostfully-89-success-shown')) return;
-    
-    const banner = document.createElement('div');
-    banner.className = 'success-banner';
-    banner.innerHTML = `
-      <div class="banner-content">
-        <div class="banner-icon">🎉</div>
-        <div class="banner-text">
-          <strong>SUCCESS!</strong> You now have access to all 89 properties!
-          <div class="banner-subtext">API pagination issue resolved • Enhanced features available</div>
+  addGlobalEventListeners() {
+    // Global escape key handler
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const modal = document.querySelector('.modal-overlay');
+        if (modal) {
+          this.closeModal(modal);
+        }
+      }
+    });
+
+    // Global click outside handler
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('modal-overlay')) {
+        this.closeModal(e.target);
+      }
+    });
+  }
+
+  closeModal(modalElement) {
+    if (modalElement && modalElement.classList.contains('modal-overlay')) {
+      modalElement.style.animation = 'fadeOut 0.2s ease-out';
+      setTimeout(() => {
+        if (modalElement.parentNode) {
+          modalElement.remove();
+        }
+      }, 200);
+    }
+  }
+
+  addPropertyDropdown() {
+    const dropdownHtml = `
+      <div class="property-dropdown-container" id="propertyDropdownContainer" style="display: none;">
+        <label class="dropdown-label" for="propertyDropdown">
+          Quick Property Navigation
+        </label>
+        <select id="propertyDropdown" class="property-dropdown">
+          <option value="">Select a property...</option>
+        </select>
+        <div class="dropdown-helper">
+          Select any property to jump directly to it
         </div>
-        <button class="banner-close" onclick="this.parentElement.parentElement.remove(); localStorage.setItem('hostfully-89-success-shown', 'true');">×</button>
       </div>
     `;
-    
-    // Insert at the very top of the container
-    const container = document.querySelector('.container');
-    if (container) {
-      container.insertBefore(banner, container.firstChild);
+
+    // Insert after controls
+    const controls = document.querySelector('.controls');
+    if (controls) {
+      controls.insertAdjacentHTML('afterend', dropdownHtml);
+      this.bindDropdownEvents();
     }
+  }
+
+  bindDropdownEvents() {
+    this.$dropdown = document.getElementById("propertyDropdown");
+    this.$dropdownContainer = document.getElementById("propertyDropdownContainer");
+
+    // Dropdown selection
+    this.$dropdown.addEventListener("change", (e) => {
+      const selectedIndex = parseInt(e.target.value, 10);
+      if (selectedIndex >= 0 && selectedIndex < this.properties.length) {
+        this.currentIndex = selectedIndex;
+        this.render();
+        this.showSuccessToast(`Jumped to: ${this.properties[selectedIndex].name || 'Property ' + (selectedIndex + 1)}`);
+      }
+    });
+  }
+
+  populateDropdown() {
+    if (!this.$dropdown || !this.properties.length) return;
+
+    this.$dropdown.innerHTML = '<option value="">Select a property...</option>';
+
+    this.properties.forEach((property, index) => {
+      const option = document.createElement('option');
+      option.value = index.toString();
+      
+      const name = property.name || `Property ${index + 1}`;
+      const city = property.address?.city || 'Unknown';
+      const state = property.address?.state || '';
+      const status = property.isActive ? '✓' : '✗';
+      
+      option.textContent = `${status} ${name} - ${city}${state ? ', ' + state : ''}`;
+      this.$dropdown.appendChild(option);
+    });
+
+    // Show the dropdown container
+    this.$dropdownContainer.style.display = 'block';
   }
 
   async loadProperties() {
@@ -283,16 +383,19 @@ class PropertyBrowser {
       if (!data.success) throw new Error(data.error || "Failed to load properties");
       
       this.properties = data.properties || [];
-      this.allProperties = [...this.properties]; // Keep copy for potential filtering
+      this.allProperties = [...this.properties];
       this.currentIndex = 0;
       
       if (this.properties.length === 0) throw new Error("No properties found");
+      
+      // Populate dropdown after loading properties
+      this.populateDropdown();
       
       // Show success message based on count
       this.showPropertyStats();
       
       if (this.properties.length >= 89) {
-        this.showSuccessToast(`Perfect! Loaded all ${this.properties.length} properties! 🎉`);
+        this.showSuccessToast(`Perfect! Loaded all ${this.properties.length} properties!`);
       } else if (this.properties.length >= 85) {
         this.showSuccessToast(`Great! Loaded ${this.properties.length} properties (close to expected 89)`);
       } else if (this.properties.length >= 50) {
@@ -345,10 +448,16 @@ class PropertyBrowser {
       </div>
     `;
 
-    // Insert after controls
-    const controls = document.querySelector('.controls');
-    if (controls) {
-      controls.insertAdjacentHTML('afterend', statsHtml);
+    // Insert after dropdown container
+    const dropdownContainer = document.querySelector('.property-dropdown-container');
+    if (dropdownContainer) {
+      dropdownContainer.insertAdjacentHTML('afterend', statsHtml);
+    } else {
+      // Fallback: insert after controls
+      const controls = document.querySelector('.controls');
+      if (controls) {
+        controls.insertAdjacentHTML('afterend', statsHtml);
+      }
     }
   }
 
@@ -356,6 +465,7 @@ class PropertyBrowser {
     if (this.currentIndex > 0) {
       this.currentIndex--;
       this.render();
+      this.updateDropdownSelection();
     }
   }
 
@@ -363,6 +473,7 @@ class PropertyBrowser {
     if (this.currentIndex < this.properties.length - 1) {
       this.currentIndex++;
       this.render();
+      this.updateDropdownSelection();
     }
   }
 
@@ -371,6 +482,13 @@ class PropertyBrowser {
     if (Number.isFinite(n) && n >= 1 && n <= this.properties.length) {
       this.currentIndex = n - 1;
       this.render();
+      this.updateDropdownSelection();
+    }
+  }
+
+  updateDropdownSelection() {
+    if (this.$dropdown) {
+      this.$dropdown.value = this.currentIndex.toString();
     }
   }
 
@@ -385,7 +503,6 @@ class PropertyBrowser {
       this.cache.set(uid, data);
       return data;
     } catch (e) {
-      // Cache the error so we don't retry constantly
       const errorData = { descriptions: {}, characterCounts: {}, error: e.message };
       this.cache.set(uid, errorData);
       return errorData;
@@ -441,6 +558,7 @@ class PropertyBrowser {
     }
 
     this.updateControls();
+    this.updateDropdownSelection();
   }
 
   renderDescriptions(descriptions, counts) {
@@ -512,7 +630,7 @@ class PropertyBrowser {
       this.$download.textContent = original;
       this.$download.disabled = false;
       
-      this.showSuccessToast(`Downloaded ${filename} successfully! 📄`);
+      this.showSuccessToast(`Downloaded ${filename} successfully!`);
       
     } catch (e) {
       this.$download.disabled = false;
@@ -529,80 +647,85 @@ class PropertyBrowser {
 
     const analytics = this.calculateAnalytics();
     
-    // Create simple analytics display that overlays the current content
     const overlay = document.createElement('div');
-    overlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.5);
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    `;
+    overlay.className = 'modal-overlay';
+    overlay.style.animation = 'fadeIn 0.2s ease-out';
     
     overlay.innerHTML = `
-      <div style="background: white; border-radius: 8px; padding: 30px; max-width: 600px; width: 100%; max-height: 80vh; overflow-y: auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #dee2e6; padding-bottom: 15px;">
+      <div class="modal-content">
+        <div class="modal-header">
           <h2 style="margin: 0; color: #333;">Property Analytics</h2>
-          <button onclick="this.closest('div[style*=\"position: fixed\"]').remove()" style="background: #dc3545; color: white; border: none; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 18px;">×</button>
+          <button class="modal-close" type="button" aria-label="Close">×</button>
         </div>
         
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; margin-bottom: 25px;">
-          <div style="text-align: center; padding: 20px; background: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6;">
-            <div style="font-size: 28px; font-weight: 700; color: #007bff; margin-bottom: 5px;">${analytics.total}</div>
-            <div style="font-size: 14px; color: #6c757d; font-weight: 600;">Total Properties</div>
-          </div>
-          <div style="text-align: center; padding: 20px; background: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6;">
-            <div style="font-size: 28px; font-weight: 700; color: #28a745; margin-bottom: 5px;">${analytics.active}</div>
-            <div style="font-size: 14px; color: #6c757d; font-weight: 600;">Active</div>
-          </div>
-          <div style="text-align: center; padding: 20px; background: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6;">
-            <div style="font-size: 28px; font-weight: 700; color: #6f42c1; margin-bottom: 5px;">${analytics.cities}</div>
-            <div style="font-size: 14px; color: #6c757d; font-weight: 600;">Cities</div>
-          </div>
-          <div style="text-align: center; padding: 20px; background: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6;">
-            <div style="font-size: 28px; font-weight: 700; color: #fd7e14; margin-bottom: 5px;">${analytics.states}</div>
-            <div style="font-size: 14px; color: #6c757d; font-weight: 600;">States</div>
-          </div>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
-          <div>
-            <h3 style="color: #495057; margin-bottom: 12px; font-size: 16px;">Top Cities</h3>
-            <div style="background: #f8f9fa; border-radius: 6px; padding: 15px;">
-              ${analytics.topCities.map(([city, count]) => 
-                `<div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #dee2e6; font-size: 14px;">
-                  <span>${city}</span>
-                  <strong style="color: #007bff;">${count}</strong>
-                </div>`
-              ).join('')}
+        <div class="modal-body">
+          <div class="analytics-grid">
+            <div class="metric-box">
+              <div class="metric-number">${analytics.total}</div>
+              <div class="metric-label">Total</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-number">${analytics.active}</div>
+              <div class="metric-label">Active</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-number">${analytics.cities}</div>
+              <div class="metric-label">Cities</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-number">${analytics.states}</div>
+              <div class="metric-label">States</div>
             </div>
           </div>
-          
-          <div>
-            <h3 style="color: #495057; margin-bottom: 12px; font-size: 16px;">By State</h3>
-            <div style="background: #f8f9fa; border-radius: 6px; padding: 15px;">
-              ${analytics.topStates.map(([state, count]) => 
-                `<div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #dee2e6; font-size: 14px;">
-                  <span>${state}</span>
-                  <strong style="color: #28a745;">${count}</strong>
-                </div>`
-              ).join('')}
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+            <div>
+              <h3 style="margin-bottom: 10px; font-size: 16px; color: #333;">Top Cities</h3>
+              <div style="background: #f8f9fa; border-radius: 6px; padding: 15px;">
+                ${analytics.topCities.map(([city, count]) => 
+                  `<div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px;">
+                    <span>${this.escape(city)}</span>
+                    <strong>${count}</strong>
+                  </div>`
+                ).join('')}
+              </div>
+            </div>
+            
+            <div>
+              <h3 style="margin-bottom: 10px; font-size: 16px; color: #333;">By State</h3>
+              <div style="background: #f8f9fa; border-radius: 6px; padding: 15px;">
+                ${analytics.topStates.map(([state, count]) => 
+                  `<div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px;">
+                    <span>${this.escape(state)}</span>
+                    <strong>${count}</strong>
+                  </div>`
+                ).join('')}
+              </div>
             </div>
           </div>
-        </div>
-
-        <div style="margin-top: 20px; padding: 15px; background: #d4edda; border-radius: 6px; border-left: 4px solid #28a745;">
-          <strong style="color: #155724;">Success Rate:</strong> 
-          <span style="color: #155724;">${Math.round(analytics.total / 89 * 100)}% of expected 89 properties loaded</span>
         </div>
       </div>
     `;
+
+    // Add close button event listener
+    const closeBtn = overlay.querySelector('.modal-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => this.closeModal(overlay));
+    }
+    
+    // Add fade-in style
+    const fadeStyle = document.createElement('style');
+    fadeStyle.textContent = `
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
+      }
+    `;
+    document.head.appendChild(fadeStyle);
     
     document.body.appendChild(overlay);
   }
@@ -637,12 +760,10 @@ class PropertyBrowser {
   showError(msg) {
     this.$error.textContent = msg;
     this.$error.style.display = "block";
-    // Auto-hide after 5 seconds
     setTimeout(() => this.hideError(), 5000);
   }
 
   showSuccessToast(msg) {
-    // Remove existing toast if any
     const existingToast = document.querySelector('.success-toast');
     if (existingToast) existingToast.remove();
 
@@ -665,7 +786,7 @@ class PropertyBrowser {
   }
 }
 
-// Make it globally accessible and initialize
+// Initialize when DOM is ready
 window.addEventListener("DOMContentLoaded", () => {
   window.propertyBrowser = new PropertyBrowser();
 });

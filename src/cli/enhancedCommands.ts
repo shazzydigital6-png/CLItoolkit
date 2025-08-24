@@ -1,4 +1,4 @@
-// src/cli/enhancedCommands.ts - Fixed version with proper method calls
+// src/cli/enhancedCommands.ts - Dynamic property detection version
 
 import * as fs from "fs";
 import * as path from "path";
@@ -18,19 +18,89 @@ export interface ExportOptions {
 
 export class EnhancedPropertyManager {
   private client: HostfullyClient;
+  private discoveredTotal: number = 0;
   
   constructor() {
     this.client = new HostfullyClient();
   }
 
   /**
-   * Test different limits to find optimal value
+   * Discover the actual total count of properties
    */
-  async findOptimalLimit(): Promise<{ limit: number; count: number }> {
+  async discoverTotalPropertyCount(): Promise<number> {
+    console.log("Discovering total property count...");
+    
+    try {
+      // Try to get metadata that might contain total count
+      const response = await axios.get(`${ENV.BASE}/properties`, {
+        params: { 
+          agencyUid: ENV.AGENCY_UID,
+          _limit: 1,
+          includeArchived: true 
+        },
+        headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
+      });
+      
+      const meta = response.data?._metadata || response.data?.meta || {};
+      if (meta.totalCount && meta.totalCount > 0) {
+        console.log(`API reports total count: ${meta.totalCount}`);
+        this.discoveredTotal = meta.totalCount;
+        return meta.totalCount;
+      }
+      
+      // Fallback: binary search to find actual count
+      console.log("No metadata available, discovering count via binary search...");
+      let low = 50, high = 5000;
+      let actualCount = 0;
+      
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        try {
+          const testResponse = await axios.get(`${ENV.BASE}/properties`, {
+            params: { 
+              agencyUid: ENV.AGENCY_UID,
+              _limit: mid,
+              includeArchived: true 
+            },
+            headers: { 'X-HOSTFULLY-APIKEY': ENV.APIKEY }
+          });
+          
+          const items = testResponse.data?.properties || testResponse.data?.data || [];
+          
+          if (items.length < mid) {
+            // Found all properties
+            actualCount = Math.max(actualCount, items.length);
+            high = mid - 1;
+          } else {
+            // Might be more properties
+            actualCount = Math.max(actualCount, items.length);
+            low = mid + 1;
+          }
+        } catch (e) {
+          high = mid - 1;
+        }
+      }
+      
+      console.log(`Discovered actual property count: ${actualCount}`);
+      this.discoveredTotal = actualCount;
+      return actualCount;
+    } catch (e) {
+      console.warn("Could not discover total count, will use fallback");
+      return 0;
+    }
+  }
+
+  /**
+   * Test different limits to find optimal value with dynamic discovery
+   */
+  async findOptimalLimit(): Promise<{ limit: number; count: number; estimatedTotal: number }> {
     console.log("Testing different limit values to find optimal...");
     
-    const testLimits = [500, 300, 250, 200, 150, 100];
-    let bestResult = { limit: 100, count: 0 };
+    // First discover the total count
+    const estimatedTotal = await this.discoverTotalPropertyCount();
+    
+    const testLimits = [2000, 1000, 500, 300, 250, 200, 150, 100];
+    let bestResult = { limit: 100, count: 0, estimatedTotal };
     
     for (const limit of testLimits) {
       try {
@@ -51,13 +121,19 @@ export class EnhancedPropertyManager {
         console.log(`   _limit=${limit}: ${count} properties`);
         
         if (count > bestResult.count) {
-          bestResult = { limit, count };
+          bestResult = { limit, count, estimatedTotal };
           console.log(`   New best: ${count} properties`);
         }
         
-        // If we got 89+ properties, this is likely optimal
-        if (count >= 89) {
-          console.log(`   Found all expected properties!`);
+        // If we got close to or more than estimated total, this is likely optimal
+        if (estimatedTotal > 0 && count >= estimatedTotal * 0.95) {
+          console.log(`   Found approximately all properties (${count}/${estimatedTotal})!`);
+          break;
+        }
+        
+        // If we got the same count as the limit, there might be more
+        if (count < limit) {
+          console.log(`   Reached end of properties at ${count}`);
           break;
         }
         
@@ -69,6 +145,11 @@ export class EnhancedPropertyManager {
     }
     
     console.log(`Optimal limit found: _limit=${bestResult.limit} returns ${bestResult.count} properties`);
+    if (estimatedTotal > 0) {
+      const percentage = Math.round((bestResult.count / estimatedTotal) * 100);
+      console.log(`Coverage: ${bestResult.count}/${estimatedTotal} (${percentage}%)`);
+    }
+    
     return bestResult;
   }
 
@@ -101,15 +182,15 @@ export class EnhancedPropertyManager {
   }
 
   /**
-   * Verify we can get all 89 properties and show summary
+   * Verify we can get all properties and show summary
    */
   async verifyFullAccess(): Promise<void> {
     console.log("VERIFYING FULL PROPERTY ACCESS");
     console.log("=".repeat(50));
     
     try {
-      // Test optimal limit finding
-      console.log("1. Finding optimal limit...");
+      // Test optimal limit finding with discovery
+      console.log("1. Finding optimal limit and discovering total count...");
       const optimal = await this.findOptimalLimit();
       
       // Get performance stats
@@ -118,14 +199,21 @@ export class EnhancedPropertyManager {
       
       console.log(`\nVERIFICATION RESULTS:`);
       console.log(`Optimal limit: ${optimal.limit}`);
-      console.log(`Properties found: ${optimal.count}/89`);
+      console.log(`Properties found: ${optimal.count}`);
+      if (optimal.estimatedTotal > 0) {
+        const percentage = Math.round((optimal.count / optimal.estimatedTotal) * 100);
+        console.log(`Estimated total: ${optimal.estimatedTotal}`);
+        console.log(`Coverage: ${percentage}%`);
+      }
       console.log(`Request duration: ${stats.durationMs}ms`);
       console.log(`Average per property: ${stats.averagePerProperty}ms`);
       
-      if (optimal.count >= 89) {
+      if (optimal.estimatedTotal > 0 && optimal.count >= optimal.estimatedTotal * 0.95) {
         console.log(`\nSUCCESS! Full access to all properties confirmed!`);
+      } else if (optimal.count >= 100) {
+        console.log(`\nGOOD! Found substantial number of properties (${optimal.count})`);
       } else {
-        console.log(`\nWarning: Only found ${optimal.count}/89 properties`);
+        console.log(`\nWarning: Only found ${optimal.count} properties`);
         console.log(`Consider running investigate command for missing properties`);
       }
 
@@ -140,7 +228,7 @@ export class EnhancedPropertyManager {
   }
 
   /**
-   * Export all 89 properties with comprehensive data
+   * Export all properties with comprehensive data
    */
   async exportAllProperties(options: ExportOptions = {}): Promise<string[]> {
     const {
@@ -168,8 +256,20 @@ export class EnhancedPropertyManager {
     const allProperties = await this.client.listAllProperties();
     console.log(`Retrieved ${allProperties.length} properties`);
     
-    if (validate && allProperties.length < 85) {
-      console.warn(`Warning: Expected ~89 properties but got ${allProperties.length}`);
+    // Discover total for validation if not already done
+    if (validate && this.discoveredTotal === 0) {
+      await this.discoverTotalPropertyCount();
+    }
+    
+    if (validate && this.discoveredTotal > 0) {
+      const percentage = Math.round((allProperties.length / this.discoveredTotal) * 100);
+      console.log(`Coverage: ${allProperties.length}/${this.discoveredTotal} (${percentage}%)`);
+      
+      if (percentage < 90) {
+        console.warn(`Warning: Only retrieved ${percentage}% of expected properties`);
+      }
+    } else if (validate && allProperties.length < 50) {
+      console.warn(`Warning: Only found ${allProperties.length} properties, which seems low`);
     }
 
     // Step 2: Enhance with additional data
@@ -387,6 +487,7 @@ export class EnhancedPropertyManager {
       export_info: {
         timestamp: new Date().toISOString(),
         total_properties: properties.length,
+        estimated_total: this.discoveredTotal || properties.length,
         data_source: 'Hostfully API',
         api_endpoint: ENV.BASE,
         agency_uid: ENV.AGENCY_UID
@@ -434,13 +535,22 @@ export class EnhancedPropertyManager {
 
     const withDescriptions = properties.filter(p => p.descriptions && Object.keys(p.descriptions).length > 0).length;
 
+    // Dynamic success rate calculation
+    let successRateText = '';
+    if (this.discoveredTotal > 0) {
+      const percentage = Math.round((properties.length / this.discoveredTotal) * 100);
+      successRateText = `- **Success Rate**: ${percentage}% (${properties.length}/${this.discoveredTotal})`;
+    } else {
+      successRateText = `- **Total Found**: ${properties.length} properties`;
+    }
+
     const report = `# Hostfully Property Export Summary
 
 ## Export Information
 - **Export Date**: ${new Date().toISOString()}
 - **Total Properties**: ${properties.length}
-- **Expected Count**: 89
-- **Success Rate**: ${Math.round(properties.length / 89 * 100)}%
+${this.discoveredTotal > 0 ? `- **Estimated Total**: ${this.discoveredTotal}` : ''}
+${successRateText}
 
 ## Property Status
 - **Active Properties**: ${activeCount} (${Math.round(activeCount / properties.length * 100)}%)
@@ -547,9 +657,19 @@ ${properties.slice(0, 5).map((p, i) =>
     
     const properties = await this.client.listAllProperties();
     
+    // Try to discover total if not already done
+    if (this.discoveredTotal === 0) {
+      await this.discoverTotalPropertyCount();
+    }
+    
     // Basic stats
     console.log(`Basic Statistics:`);
-    console.log(`   Total Properties: ${properties.length}`);
+    console.log(`   Total Properties Found: ${properties.length}`);
+    if (this.discoveredTotal > 0) {
+      const percentage = Math.round((properties.length / this.discoveredTotal) * 100);
+      console.log(`   Estimated Total: ${this.discoveredTotal}`);
+      console.log(`   Coverage: ${percentage}%`);
+    }
     console.log(`   Active: ${properties.filter(p => p.isActive).length}`);
     console.log(`   Inactive: ${properties.filter(p => !p.isActive).length}`);
     
